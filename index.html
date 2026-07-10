@@ -307,12 +307,12 @@
         { name: 'קרן פנסיה — בת זוג',     value: 180000, note: 'דוגמה',               person: 'יעל'    },
       ],
       savings: [
-        { name: 'קרן השתלמות',            value: 120000, note: 'דוגמה', taxable: false },
-        { name: 'גמל להשקעה',             value: 50000,  note: 'דוגמה', taxable: true, costBasis: 40000 },
+        { name: 'קרן השתלמות',            value: 120000, note: 'דוגמה' },
+        { name: 'גמל להשקעה',             value: 50000,  note: 'דוגמה' },
       ],
       stocks: [
-        { name: 'קרן מחקה S&P 500',       value: 80000, taxable: true, costBasis: 60000 },
-        { name: 'קרן מחקה תל אביב 125',   value: 40000, taxable: true, costBasis: 35000 },
+        { name: 'קרן מחקה S&P 500',       value: 80000 },
+        { name: 'קרן מחקה תל אביב 125',   value: 40000 },
       ],
       crypto: [
         { name: 'Bitcoin', ticker: 'BTC', qty: 0.1, value: null, marketValue: 40000 },
@@ -386,12 +386,6 @@
       return str.replace(/[0-9,.KMB]/g, '•').replace(/•+/g, '••••');
     }
 
-    // Capital gains tax: 25% on gains above cost basis, only for taxable items with a known cost basis
-    function netOfTax(value, item) {
-      if (!item || !item.taxable || !(item.costBasis > 0)) return value;
-      return value - Math.max(0, value - item.costBasis) * 0.25;
-    }
-
     // Pension future value at retirement age
     const PERSON_AGES   = { יהונתן: 43, יעל: 41 };
     const RETIRE_AGES   = { יהונתן: 67, יעל: 65 };
@@ -440,8 +434,8 @@
     function calcNetWorth(holdings, liveCryptoPrices = {}) {
       const catTotals = {};
       catTotals.pension  = (holdings.pension || []).reduce((s,x) => s + (x.value || 0), 0);
-      catTotals.savings  = (holdings.savings || []).reduce((s,x) => s + netOfTax(x.value || 0, x), 0);
-      catTotals.stocks   = (holdings.stocks  || []).reduce((s,x) => s + netOfTax(x.value || 0, x), 0);
+      catTotals.savings  = (holdings.savings || []).reduce((s,x) => s + (x.value || 0), 0);
+      catTotals.stocks   = (holdings.stocks  || []).reduce((s,x) => s + (x.value || 0), 0);
       catTotals.crypto   = (holdings.crypto  || []).reduce((s,x) => {
         const live = liveCryptoPrices[x.ticker] != null
           ? liveCryptoPrices[x.ticker] * (x.qty || 0)
@@ -474,21 +468,12 @@
     let _ridCounter = 0;
     function nextRid() { return `r${Date.now().toString(36)}${(_ridCounter++).toString(36)}`; }
 
-    // Migrate saved data to add taxable/costBasis/person fields if missing
+    // Migrate saved data to add person/_rid fields if missing
     function migrateHoldings(h) {
       if (!h) return h;
       Object.values(h).forEach(list => (list || []).forEach(item => {
         if (!item._rid) item._rid = nextRid();
       }));
-      (h.stocks || []).forEach(item => {
-        if (item.taxable === undefined) { item.taxable = true; item.costBasis = item.costBasis ?? 0; }
-      });
-      (h.savings || []).forEach(item => {
-        if (item.taxable === undefined) {
-          item.taxable = item.name.includes('גמל להשקעה');
-          if (item.taxable) item.costBasis = item.costBasis ?? 0;
-        }
-      });
       (h.pension || []).forEach(item => {
         if (!item.person) {
           item.person = item.name.includes('יעל') ? 'יעל' : 'יהונתן';
@@ -745,7 +730,6 @@
 
     // KPI card
     function KpiCard({ cat, catTotal, prevTotal, masked, currency }) {
-      const worstCaseAfterTax = cat.id === 'stocks' ? Math.round(catTotal * 0.75) : null;
       return (
         <div className="kpi-card" style={{ borderTop:`3px solid ${cat.color}` }}>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -762,13 +746,6 @@
             <span style={{ fontSize:11, color:'var(--ink-3)' }}>{(cat.items || []).length} פריטים</span>
             <DeltaTag cur={catTotal} prev={prevTotal} masked={masked} size={10} />
           </div>
-          {worstCaseAfterTax && (
-            <div className={`number-val${masked?' masked':''}`}
-                 style={{ fontSize:11, color:'var(--ink-3)', direction:'ltr', textAlign:'right',
-                          borderTop:'1px solid var(--border-2)', paddingTop:6, marginTop:-2 }}>
-              אחרי מס (מקס׳): {maskVal(fmt(worstCaseAfterTax, currency), masked)}
-            </div>
-          )}
         </div>
       );
     }
@@ -1768,7 +1745,7 @@
             newItem = { name: '', foreignAmount: 0, currency: 'ILS', note: '',
                         _editForeignAmount: '0', _editCurrency: 'ILS' };
           } else {
-            newItem = { name: '', value: 0, note: '', taxable: false, _edit: '0' };
+            newItem = { name: '', value: 0, note: '', _edit: '0' };
           }
           newItem._rid = nextRid();
           newItem._touched = true; // new item — the user is typing it right now
