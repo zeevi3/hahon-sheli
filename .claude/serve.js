@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = '/Users/yehonatanzeevi/Desktop/קלוד קוד/אפליקציה למעקב נכסים';
+const ROOT = path.join(__dirname, '..'); // project root, wherever the folder lives
 const PORT = 8420;
 
 const MIME = {

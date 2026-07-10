@@ -4,7 +4,7 @@
     {
       "name": "static-server",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["/Users/yehonatanzeevi/Desktop/קלוד קוד/אפליקציה למעקב נכסים/.claude/serve.js"],
+      "runtimeArgs": [".claude/serve.js"],
       "port": 8420
     }
   ]

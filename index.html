@@ -568,6 +568,19 @@
       if (!r.ok) throw new Error(r.status);
     }
 
+    // Create a new private bin with the given data; returns its Bin ID
+    async function createJsonBin(apiKey, data) {
+      const r = await fetch(JSONBIN_BASE, {
+        method: 'POST',
+        headers: { 'X-Master-Key': apiKey, 'Content-Type': 'application/json',
+                   'X-Bin-Private': 'true', 'X-Bin-Name': 'hahon-sheli' },
+        body: JSON.stringify(data),
+      });
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      return d.metadata.id;
+    }
+
     // ─────────────────────────────────────────────────────
     // COMPONENTS
     // ─────────────────────────────────────────────────────
@@ -1375,10 +1388,10 @@
       const [connecting, setConnecting] = useState(false);
 
       async function handleConnect() {
-        if (!form.apiKey.trim() || !form.binId.trim()) { setFormErr('נא למלא את שני השדות'); return; }
+        if (!form.apiKey.trim()) { setFormErr('נא להזין Master Key'); return; }
         setConnecting(true); setFormErr(null);
-        try { await onSyncConnect(form); }
-        catch (e) { setFormErr('שגיאה — בדוק שהמפתח ומזהה ה-Bin נכונים'); }
+        try { await onSyncConnect({ apiKey: form.apiKey.trim(), binId: form.binId.trim() }); }
+        catch (e) { setFormErr('שגיאה — בדוק שהמפתח (וה-Bin ID אם הוזן) נכונים'); }
         setConnecting(false);
       }
 
@@ -1451,11 +1464,21 @@
             {syncConfig ? (
               /* Connected state */
               <div>
-                <div style={{ fontSize:11, color:'var(--ink-2)', marginBottom:8 }}>
+                <div style={{ fontSize:11, color:'var(--ink-2)', marginBottom:6 }}>
                   מחובר ל-JSONBin
-                  <span style={{ fontSize:10, color:'var(--ink-3)', marginRight:6 }}>
-                    Bin: …{syncConfig.binId.slice(-6)}
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+                  <span style={{ fontSize:10, color:'var(--ink-3)', direction:'ltr',
+                                 fontVariantNumeric:'tabular-nums', overflowWrap:'anywhere' }}>
+                    Bin: {syncConfig.binId}
                   </span>
+                  <button title="העתק Bin ID"
+                    onClick={() => navigator.clipboard?.writeText(syncConfig.binId)}
+                    style={{ fontFamily:'inherit', fontSize:10, padding:'2px 8px', borderRadius:6,
+                      border:'1px solid var(--border)', background:'white',
+                      color:'var(--ink-2)', cursor:'pointer', flexShrink:0 }}>
+                    העתק
+                  </button>
                 </div>
                 <div style={{ display:'flex', gap:6 }}>
                   <button onClick={onSyncNow}
@@ -1479,7 +1502,7 @@
                   onChange={e => setForm(f => ({...f, apiKey: e.target.value}))}
                   style={{ fontFamily:'inherit', fontSize:11, padding:'6px 8px', borderRadius:7,
                     border:'1px solid var(--border)', outline:'none', direction:'ltr' }} />
-                <input placeholder="Bin ID"
+                <input placeholder="Bin ID (ריק = ייווצר חדש אוטומטית)"
                   value={form.binId}
                   onChange={e => setForm(f => ({...f, binId: e.target.value}))}
                   style={{ fontFamily:'inherit', fontSize:11, padding:'6px 8px', borderRadius:7,
@@ -1842,15 +1865,21 @@
 
       // ── Sync callbacks ───────────────────────────────────
       const onSyncConnect = useCallback(async (cfg) => {
-        const data = await fetchFromJsonBin(cfg);
-        if (data && data.current) {
-          migrateHoldings(data.current);
-          (data.snapshots || []).forEach(s => migrateHoldings(s.holdings));
-          setAppState(data);
-          saveState(data);
+        if (!cfg.binId) {
+          // No Bin ID — create a fresh private bin seeded with this device's data
+          const binId = await createJsonBin(cfg.apiKey, appState);
+          cfg = { ...cfg, binId };
         } else {
-          // Bin is empty — push current data up
-          await pushToJsonBin(cfg, appState);
+          const data = await fetchFromJsonBin(cfg);
+          if (data && data.current) {
+            migrateHoldings(data.current);
+            (data.snapshots || []).forEach(s => migrateHoldings(s.holdings));
+            setAppState(data);
+            saveState(data);
+          } else {
+            // Bin is empty — push current data up
+            await pushToJsonBin(cfg, appState);
+          }
         }
         saveSyncConfig(cfg);
         setSyncConfig(cfg);
