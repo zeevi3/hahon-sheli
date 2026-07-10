@@ -356,6 +356,21 @@
       LINK: 'chainlink', UNI: 'uniswap', LTC: 'litecoin', ATOM: 'cosmos',
     };
 
+    // Live stock price via Yahoo Finance (through a CORS proxy), converted to ILS per unit.
+    // Supports US symbols (AAPL, TSLA) and TASE symbols with .TA suffix.
+    // TASE quotes arrive in agorot (currency "ILA") — divided by 100.
+    async function fetchYahooPriceILS(symbol) {
+      const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+      const r = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(yUrl)}`);
+      const j = await r.json();
+      const meta = j?.chart?.result?.[0]?.meta;
+      if (!meta || meta.regularMarketPrice == null) return null;
+      const cur = meta.currency || 'USD';
+      if (cur === 'ILS') return meta.regularMarketPrice;
+      if (cur === 'ILA') return meta.regularMarketPrice / 100;
+      return toILS(meta.regularMarketPrice, cur);
+    }
+
     // Convert a foreign-currency amount to ILS
     function toILS(amount, currency) {
       if (!amount || !currency || currency === 'ILS') return amount || 0;
@@ -421,27 +436,26 @@
       return fmt(n);
     }
 
+    // Live value for a ticker-based holding (crypto or stock): qty × live ILS price
+    function liveTickerValue(item, livePrices = {}) {
+      const price = item.ticker != null ? livePrices[item.ticker] : null;
+      return price != null && item.qty ? price * item.qty : null;
+    }
+
     // ILS value of a single item, regardless of category type
-    function itemILS(catId, item, liveCryptoPrices = {}) {
+    function itemILS(catId, item, livePrices = {}) {
       if (catId === 'bank')   return toILS(item.foreignAmount ?? item.value ?? 0, item.currency || 'ILS');
-      if (catId === 'crypto') {
-        const live = liveCryptoPrices[item.ticker];
-        return live != null ? live * (item.qty || 0) : (item.marketValue || 0);
-      }
+      if (catId === 'crypto') return liveTickerValue(item, livePrices) ?? (item.marketValue || 0);
+      if (catId === 'stocks') return liveTickerValue(item, livePrices) ?? (item.value || 0);
       return item.value || 0;
     }
 
-    function calcNetWorth(holdings, liveCryptoPrices = {}) {
+    function calcNetWorth(holdings, livePrices = {}) {
       const catTotals = {};
       catTotals.pension  = (holdings.pension || []).reduce((s,x) => s + (x.value || 0), 0);
       catTotals.savings  = (holdings.savings || []).reduce((s,x) => s + (x.value || 0), 0);
-      catTotals.stocks   = (holdings.stocks  || []).reduce((s,x) => s + (x.value || 0), 0);
-      catTotals.crypto   = (holdings.crypto  || []).reduce((s,x) => {
-        const live = liveCryptoPrices[x.ticker] != null
-          ? liveCryptoPrices[x.ticker] * (x.qty || 0)
-          : null;
-        return s + (live ?? x.marketValue ?? 0);
-      }, 0);
+      catTotals.stocks   = (holdings.stocks  || []).reduce((s,x) => s + (liveTickerValue(x, livePrices) ?? x.value ?? 0), 0);
+      catTotals.crypto   = (holdings.crypto  || []).reduce((s,x) => s + (liveTickerValue(x, livePrices) ?? x.marketValue ?? 0), 0);
       catTotals.bank     = (holdings.bank || []).reduce((s,x) => s + toILS(x.foreignAmount ?? x.value ?? 0, x.currency || 'ILS'), 0);
       const total = Object.values(catTotals).reduce((s,v) => s + v, 0);
       return { catTotals, total };
@@ -752,14 +766,15 @@
 
     function HoldingRow({ item, catId, itemIdx, editMode, onValueChange, onDeleteItem,
                           masked, currency, isCrypto, customCurrencies, onAddCurrency,
-                          liveCryptoPrices, getPrevItemVal }) {
+                          livePrices, getPrevItemVal }) {
       const prevVal = getPrevItemVal ? getPrevItemVal(catId, item) : null;
       const isBank = catId === 'bank';
+      const isStocks = catId === 'stocks';
       const [addCurForm, setAddCurForm] = useState(null); // null | {code:'', rate:'', sym:''}
 
-      // Live crypto market value (qty × live price), if available
-      const liveMarket = isCrypto && liveCryptoPrices?.[item.ticker]
-        ? liveCryptoPrices[item.ticker] * (item.qty || 0)
+      // Live market value (qty × live price) for crypto/stock tickers, if available
+      const liveMarket = (isCrypto || isStocks)
+        ? liveTickerValue(item, livePrices || {})
         : null;
 
       // ── display values ──
@@ -942,7 +957,7 @@
                     value={item._editQty ?? ''}
                     onChange={e => {
                       const qty = parseFloat(e.target.value.replace(/,/g,'')) || 0;
-                      const livePrice = liveCryptoPrices?.[item._editTicker || item.ticker];
+                      const livePrice = livePrices?.[item._editTicker || item.ticker];
                       const updates = { _editQty: e.target.value, qty, _touched: true };
                       if (livePrice) updates._editMarket = String(Math.round(livePrice * qty));
                       onValueChange(catId, itemIdx, updates);
@@ -980,16 +995,44 @@
               <input className={editCls} type="text" inputMode="numeric"
                 value={item._edit ?? ''}
                 onChange={e => handleChange('value', '_edit', e.target.value)} />
+              {isStocks && (
+                <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                  <span style={{ fontSize:10, color:'var(--ink-3)' }}>כמות</span>
+                  <input className="edit-input" type="text" inputMode="decimal"
+                    style={{ width:80 }}
+                    value={item._editQty ?? ''}
+                    onChange={e => {
+                      const qty = parseFloat(e.target.value.replace(/,/g,'')) || 0;
+                      const livePrice = livePrices?.[item._editTicker || item.ticker];
+                      const updates = { _editQty: e.target.value, qty, _touched: true };
+                      if (livePrice && qty) updates._edit = String(Math.round(livePrice * qty));
+                      onValueChange(catId, itemIdx, updates);
+                    }} />
+                  <input type="text" placeholder="AAPL"
+                    value={item._editTicker ?? ''}
+                    onChange={e => onValueChange(catId, itemIdx, { _editTicker: e.target.value.toUpperCase(), ticker: e.target.value.trim().toUpperCase() })}
+                    style={{ width:64, fontFamily:'inherit', fontSize:11, fontWeight:700,
+                      background:'var(--surface-2)', border:'1px solid var(--border)',
+                      borderRadius:6, padding:'4px 6px', textAlign:'center',
+                      direction:'ltr', outline:'none', color:'var(--ink)' }} />
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end',
                           flexShrink:0, minWidth:120 }}>
-              <div className={`number-val${masked?' masked':''}`}
-                   style={{ fontSize:13, fontWeight:600, color:'var(--ink)',
-                            fontVariantNumeric:'tabular-nums', direction:'ltr', textAlign:'left' }}>
-                {maskVal(fmt(ilsValue), masked)}
+              <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                {liveMarket !== null && (
+                  <span title="שער חי" style={{ width:6, height:6, borderRadius:'50%',
+                    background:'#10B981', flexShrink:0 }} />
+                )}
+                <div className={`number-val${masked?' masked':''}`}
+                     style={{ fontSize:13, fontWeight:600, color:'var(--ink)',
+                              fontVariantNumeric:'tabular-nums', direction:'ltr', textAlign:'left' }}>
+                  {maskVal(fmt(liveMarket ?? ilsValue), masked)}
+                </div>
               </div>
-              <DeltaTag cur={ilsValue || 0} prev={prevVal} masked={masked} size={10} />
+              <DeltaTag cur={liveMarket ?? ilsValue ?? 0} prev={prevVal} masked={masked} size={10} />
             </div>
           )}
         </div>
@@ -1000,7 +1043,7 @@
     function CategoryAccordion({ cat, catTotal, items, isOpen, onToggle,
                                   editMode, onValueChange, onAddItem, onDeleteItem,
                                   masked, currency, isCrypto, customCurrencies, onAddCurrency,
-                                  liveCryptoPrices, getPrevItemVal }) {
+                                  livePrices, getPrevItemVal }) {
       return (
         <div>
           <button className="cat-trigger" onClick={onToggle}
@@ -1037,7 +1080,7 @@
                   editMode={editMode} onValueChange={onValueChange} onDeleteItem={onDeleteItem}
                   masked={masked} currency={currency} isCrypto={isCrypto}
                   customCurrencies={customCurrencies} onAddCurrency={onAddCurrency}
-                  liveCryptoPrices={liveCryptoPrices} getPrevItemVal={getPrevItemVal} />
+                  livePrices={livePrices} getPrevItemVal={getPrevItemVal} />
               ))}
 
               {/* Pension FV summary by person */}
@@ -1116,10 +1159,10 @@
     }
 
     // ── Assets-over-time table: rows = assets, columns = update dates ──
-    function TableView({ appState, liveCryptoPrices, masked, onClose }) {
+    function TableView({ appState, livePrices, masked, onClose }) {
       // Columns: "today" first (rightmost in RTL), then snapshots newest→oldest
       const cols = [
-        { label: 'היום', holdings: appState.current, live: liveCryptoPrices },
+        { label: 'היום', holdings: appState.current, live: livePrices },
         ...appState.snapshots.map(s => ({ label: formatDate(s.date), holdings: s.holdings, live: {} })).reverse(),
       ];
 
@@ -1491,7 +1534,7 @@
       const [showHistory,   setShowHistory]   = useState(false);
       const [showTable,     setShowTable]     = useState(false);
       const [viewingIdx,    setViewingIdx]    = useState(null);
-      const [liveCryptoPrices, setLiveCryptoPrices] = useState({}); // ticker → ILS per unit
+      const [livePrices, setLivePrices] = useState({}); // ticker → ILS per unit
       const [liveRatesAt,  setLiveRatesAt]    = useState(null);     // Date of last fetch
       const [ratesFetching, setRatesFetching] = useState(false);
       const [syncConfig,   setSyncConfig]     = useState(() => loadSyncConfig());
@@ -1516,9 +1559,12 @@
           if (d.rates) Object.entries(d.rates).forEach(([code, rate]) => { FX[code] = rate; });
         } catch {}
 
+        const prices = {};
+        const state = loadState();
+
         // 2. Crypto via CoinGecko (no API key needed)
         const tickers = [...new Set(
-          loadState().current.crypto.map(c => c.ticker).filter(Boolean)
+          state.current.crypto.map(c => c.ticker).filter(Boolean)
         )];
         const ids = tickers.map(t => COINGECKO_IDS[t]).filter(Boolean).join(',');
         if (ids) {
@@ -1527,15 +1573,23 @@
               `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=ils`
             );
             const d = await r.json();
-            const prices = {};
             tickers.forEach(t => {
               const id = COINGECKO_IDS[t];
               if (id && d[id]?.ils) prices[t] = d[id].ils;
             });
-            setLiveCryptoPrices(prices);
           } catch {}
         }
 
+        // 3. Stocks via Yahoo Finance (runs after forex so USD→ILS conversion is fresh)
+        const stockTickers = [...new Set(
+          state.current.stocks.map(s => s.ticker).filter(Boolean)
+        )];
+        await Promise.allSettled(stockTickers.map(async t => {
+          const p = await fetchYahooPriceILS(t);
+          if (p != null) prices[t] = p;
+        }));
+
+        setLivePrices(prices);
         setLiveRatesAt(new Date());
         setRatesFetching(false);
       }, []);
@@ -1585,8 +1639,8 @@
       const activeHoldings = editMode ? draftHoldings : displayHoldings;
 
       const { catTotals, total: netWorth } = useMemo(
-        () => calcNetWorth(activeHoldings || displayHoldings, liveCryptoPrices),
-        [activeHoldings, displayHoldings, liveRatesAt, liveCryptoPrices]
+        () => calcNetWorth(activeHoldings || displayHoldings, livePrices),
+        [activeHoldings, displayHoldings, liveRatesAt, livePrices]
       );
 
       // Previous period (last snapshot) — holdings, totals and per-item lookup
@@ -1634,8 +1688,8 @@
           draft[catId].forEach(item => {
             item._touched = false; // red until the user types a new amount
             if (catId === 'crypto') {
-              const liveMarket = liveCryptoPrices[item.ticker]
-                ? Math.round(liveCryptoPrices[item.ticker] * (item.qty || 0))
+              const liveMarket = livePrices[item.ticker]
+                ? Math.round(livePrices[item.ticker] * (item.qty || 0))
                 : (item.marketValue || 0);
               item._editMarket  = String(liveMarket);
               item._editQty     = String(item.qty    ?? 0);
@@ -1644,7 +1698,13 @@
               item._editForeignAmount = String(item.foreignAmount ?? item.value ?? 0);
               item._editCurrency      = item.currency || 'ILS';
             } else {
-              item._edit = String(item.value || 0);
+              // Stocks with a live ticker open pre-filled with the live value
+              const live = catId === 'stocks' ? liveTickerValue(item, livePrices) : null;
+              item._edit = String(live != null ? Math.round(live) : (item.value || 0));
+              if (catId === 'stocks') {
+                item._editQty    = String(item.qty ?? '');
+                item._editTicker = item.ticker || '';
+              }
             }
           });
         });
@@ -1679,6 +1739,15 @@
             } else {
               item.value = parseFloat(String(item._edit || '').replace(/,/g,'')) || 0;
               delete item._edit;
+              if (catId === 'stocks') {
+                item.qty    = parseFloat(String(item._editQty || '').replace(/,/g,'')) || 0;
+                item.ticker = (item._editTicker || '').trim().toUpperCase();
+                delete item._editQty;
+                delete item._editTicker;
+                // Snapshot the live value so history stays accurate even offline
+                const live = liveTickerValue(item, livePrices);
+                if (live != null) item.value = Math.round(live);
+              }
             }
             delete item._touched;
           });
@@ -1700,6 +1769,7 @@
         setEditMode(false);
         setDraftHoldings(null);
         setViewingIdx(null);
+        fetchLiveRates(); // pick up prices for tickers added in this edit
         if (syncConfig) {
           setSyncStatus('saving');
           pushToJsonBin(syncConfig, newState)
@@ -1935,7 +2005,7 @@
               {/* Net-worth history chart */}
               {!editMode && (
                 <NetWorthChart snapshots={appState.snapshots}
-                  currentTotal={calcNetWorth(appState.current, liveCryptoPrices).total}
+                  currentTotal={calcNetWorth(appState.current, livePrices).total}
                   masked={masked} accent={accent} />
               )}
 
@@ -2028,7 +2098,7 @@
                   isCrypto={cat.isCrypto}
                   customCurrencies={customCurrencies}
                   onAddCurrency={onAddCurrency}
-                  liveCryptoPrices={liveCryptoPrices}
+                  livePrices={livePrices}
                   getPrevItemVal={editMode ? null : getPrevItemVal}
                 />
               ))}
@@ -2042,7 +2112,7 @@
 
           {/* ── Assets-over-time table ── */}
           {showTable && (
-            <TableView appState={appState} liveCryptoPrices={liveCryptoPrices}
+            <TableView appState={appState} livePrices={livePrices}
               masked={masked} onClose={() => setShowTable(false)} />
           )}
 
