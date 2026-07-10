@@ -1,0 +1,2118 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ההון שלי</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=Frank+Ruhl+Libre:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --accent: #10B981;
+      --bg: #F2F5F3;
+      --surface: #FFFFFF;
+      --surface-2: #F8FAF9;
+      --border: #E8EDEB;
+      --border-2: #F0F4F2;
+      --ink: #0B1F1B;
+      --ink-2: #44574F;
+      --ink-3: #75897F;
+      --hero: #0B1F1B;
+      --hero-2: #10312A;
+      --serif: 'Frank Ruhl Libre', 'Heebo', serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Heebo', ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font-family: inherit; cursor: pointer; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(320px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .anim-0 { animation: fadeUp 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+    .anim-1 { animation: fadeUp 0.5s 0.08s cubic-bezier(0.22,1,0.36,1) both; }
+    .anim-2 { animation: fadeUp 0.5s 0.16s cubic-bezier(0.22,1,0.36,1) both; }
+
+    .accordion-body { overflow: hidden; max-height: 0; transition: max-height 320ms cubic-bezier(0.22,1,0.36,1); }
+    .accordion-body.open { max-height: 3000px; }
+    .chevron { display: inline-block; transition: transform 220ms ease; color: var(--ink-3); font-size: 13px; }
+    .chevron.open { transform: rotate(90deg); }
+
+    /* Edit mode */
+    .edit-input {
+      background: #F0FDF7;
+      border: 1.5px solid var(--accent);
+      border-radius: 6px;
+      font-family: 'Heebo', sans-serif;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--ink);
+      padding: 3px 8px;
+      width: 120px;
+      text-align: left;
+      direction: ltr;
+      outline: none;
+    }
+    .edit-input:focus { box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+    /* Not-yet-updated fields in edit mode: red until the user types a value */
+    .edit-input.stale { border-color: #EF4444; background: #FEF2F2; }
+    .edit-input.stale:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
+    .edit-input-hero {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid var(--accent);
+      border-radius: 0;
+      font-size: clamp(48px, 6vw, 74px);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      color: var(--ink);
+      width: 100%;
+      text-align: right;
+      direction: ltr;
+      outline: none;
+      font-family: 'Heebo', sans-serif;
+      font-variant-numeric: tabular-nums;
+      padding: 0 0 4px;
+    }
+
+    /* History sidebar */
+    .history-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.25);
+      backdrop-filter: blur(2px);
+      z-index: 999; animation: fadeIn 0.2s ease;
+    }
+    .history-panel {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 360px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 1000;
+      display: flex; flex-direction: column;
+      animation: slideIn 0.3s cubic-bezier(0.22,1,0.36,1);
+      box-shadow: 8px 0 32px rgba(0,0,0,0.08);
+    }
+
+    /* Settings panel */
+    .settings-panel {
+      position: fixed; bottom: 20px; right: 20px;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(20px) saturate(160%);
+      border: 1px solid rgba(255,255,255,0.7);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      padding: 16px 18px;
+      width: 248px;
+      z-index: 900;
+      animation: fadeIn 0.2s ease;
+    }
+
+    /* Masked */
+    .masked { filter: blur(8px); user-select: none; pointer-events: none; transition: filter 0.3s; }
+    .number-val { transition: filter 0.3s; }
+
+    .cat-trigger:hover { background: var(--surface-2) !important; }
+    .holding-row:last-child { border-bottom: none !important; }
+
+    /* Snapshot card */
+    .snapshot-card {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-2);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .snapshot-card:hover { background: var(--surface-2); }
+    .snapshot-card.active { background: #F0FDF7; border-right: 3px solid var(--accent); }
+
+    /* Edit mode banner */
+    .edit-banner {
+      position: sticky; top: 0; z-index: 50;
+      background: #ECFDF5;
+      border-bottom: 1px solid #A7F3D0;
+      padding: 10px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+      animation: fadeIn 0.2s ease;
+    }
+    .edit-banner-btns { display: flex; gap: 8px; }
+    .btn-save {
+      background: var(--accent); color: white;
+      border: none; border-radius: 8px;
+      padding: 7px 18px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn-save:hover { opacity: 0.88; }
+    .btn-cancel {
+      background: white; color: var(--ink-2);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 7px 14px; font-size: 13px; font-weight: 500;
+      cursor: pointer;
+    }
+
+    /* Viewing history banner */
+    .history-banner {
+      position: sticky; top: 0; z-index: 50;
+      background: #FEF9EC;
+      border-bottom: 1px solid #FCD34D;
+      padding: 10px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    /* ── Layout shells (padding lives here so media queries can win) ── */
+    .page-pad { max-width: 1280px; margin: 0 auto; padding: 28px 32px 48px; }
+
+    .hero-card {
+      position: relative;
+      background:
+        radial-gradient(1200px 420px at 85% -10%, rgba(16,185,129,0.22), transparent 60%),
+        radial-gradient(700px 300px at 8% 110%, rgba(52,211,153,0.10), transparent 55%),
+        linear-gradient(160deg, var(--hero-2) 0%, var(--hero) 58%);
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 34px 38px 30px;
+      margin-bottom: 20px;
+      color: #F4FBF8;
+      box-shadow: 0 24px 48px -20px rgba(11,31,27,0.45), 0 4px 12px rgba(11,31,27,0.12);
+      overflow: hidden;
+    }
+    /* faint grain for depth */
+    .hero-card::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      opacity: 0.35; mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+    }
+    .hero-card > * { position: relative; z-index: 1; }
+
+    .hero-number {
+      font-family: var(--serif);
+      font-size: clamp(46px, 6vw, 76px);
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+      color: #FFFFFF;
+      direction: ltr; text-align: right;
+    }
+
+    .panel-card {
+      background: var(--surface);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: 0 10px 28px -18px rgba(11,31,27,0.18), 0 1px 3px rgba(11,31,27,0.05);
+    }
+    .kpi-card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 15px 17px 13px;
+      border: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 9px;
+      box-shadow: 0 8px 20px -14px rgba(11,31,27,0.35);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 26px -14px rgba(11,31,27,0.45);
+    }
+
+    .app-title { font-family: var(--serif); font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+
+    .alloc-seg { transition: flex-grow 0.4s cubic-bezier(0.22,1,0.36,1); }
+
+    /* ── Assets-over-time table ── */
+    .table-panel {
+      position: fixed; inset: 24px; z-index: 1000;
+      background: var(--surface);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      box-shadow: 0 32px 80px -24px rgba(11,31,27,0.5);
+      display: flex; flex-direction: column;
+      animation: fadeIn 0.2s ease;
+      overflow: hidden;
+    }
+    .table-scroll { overflow: auto; flex: 1; }
+    .asset-table { border-collapse: separate; border-spacing: 0; width: max-content; }
+    .asset-table th, .asset-table td {
+      padding: 3px 8px; font-size: 12px; line-height: 1.35; white-space: nowrap;
+      border-bottom: 1px solid var(--border-2);
+    }
+    .asset-table .row-cat td, .asset-table .row-total td { padding-top: 5px; padding-bottom: 5px; }
+    .asset-table thead th {
+      position: sticky; top: 0; z-index: 3;
+      background: var(--surface-2);
+      font-size: 11px; font-weight: 700; color: var(--ink-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .asset-table .col-name {
+      position: sticky; right: 0; z-index: 2;
+      background: var(--surface);
+      text-align: right; font-weight: 500; color: var(--ink);
+      border-left: 1px solid var(--border);
+      max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+    }
+    .asset-table thead .col-name { z-index: 4; background: var(--surface-2); }
+    .asset-table .num { direction: ltr; text-align: left; font-variant-numeric: tabular-nums; }
+    .asset-table .cell-up   { background: rgba(16,185,129,0.08); color: #047857; }
+    .asset-table .cell-down { background: rgba(239,68,68,0.07);  color: #B91C1C; }
+    .asset-table .row-cat td {
+      background: var(--surface-2); font-weight: 700; color: var(--ink);
+      border-top: 1px solid var(--border);
+    }
+    .asset-table .row-total td {
+      background: var(--hero); color: #F4FBF8; font-weight: 700;
+      position: sticky; bottom: 0; z-index: 3;
+    }
+    .asset-table .row-total .col-name { background: var(--hero); color: #F4FBF8; z-index: 4; }
+    .asset-table .row-cat .col-name { background: var(--surface-2); }
+
+    @media (max-width: 640px) {
+      .table-panel { inset: 8px; border-radius: 14px; }
+      .page-pad { padding: 14px 14px 40px; }
+      .hero-card { padding: 22px 18px 20px; border-radius: 18px; }
+      .hero-split { flex-direction: column; gap: 14px; }
+      .hero-split > div { padding: 0 !important; border: none !important; }
+      .history-panel { width: min(360px, 92vw); }
+      .edit-banner, .history-banner { padding: 10px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef, useMemo } = React;
+
+    // ─────────────────────────────────────────────────────
+    // DEFAULT DATA (first load)
+    // ─────────────────────────────────────────────────────
+
+    // Demo data only — real data lives in localStorage / cloud sync, never in this file
+    const DEFAULT_HOLDINGS = {
+      pension: [
+        { name: 'קרן פנסיה מקיפה',        value: 250000, note: 'דוגמה — ערוך והחלף', person: 'יהונתן' },
+        { name: 'קרן פנסיה — בת זוג',     value: 180000, note: 'דוגמה',               person: 'יעל'    },
+      ],
+      savings: [
+        { name: 'קרן השתלמות',            value: 120000, note: 'דוגמה', taxable: false },
+        { name: 'גמל להשקעה',             value: 50000,  note: 'דוגמה', taxable: true, costBasis: 40000 },
+      ],
+      stocks: [
+        { name: 'קרן מחקה S&P 500',       value: 80000, taxable: true, costBasis: 60000 },
+        { name: 'קרן מחקה תל אביב 125',   value: 40000, taxable: true, costBasis: 35000 },
+      ],
+      crypto: [
+        { name: 'Bitcoin', ticker: 'BTC', qty: 0.1, value: null, marketValue: 40000 },
+      ],
+      bank: [
+        { name: 'עו"ש',                   foreignAmount: 25000, currency: 'ILS', note: 'דוגמה' },
+        { name: 'חשבון מט"ח',             foreignAmount: 3000,  currency: 'USD', note: 'דוגמה' },
+      ],
+    };
+
+    // ─────────────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────────────
+
+    const FX  = { ILS: 1, USD: 0.27, EUR: 0.25, HKD: 2.10, THB: 9.3 };
+    const SYM = { ILS: '₪', USD: '$', EUR: '€', HKD: 'HK$', THB: '฿' };
+    const CURRENCIES = ['ILS', 'USD', 'EUR', 'HKD', 'THB'];
+
+    // Custom currencies — loaded from localStorage, merged into FX/SYM at runtime
+    const CUSTOM_CUR_KEY = 'hahon-custom-currencies';
+    function loadCustomCurrencies() {
+      try {
+        const raw = localStorage.getItem(CUSTOM_CUR_KEY);
+        if (raw) {
+          const obj = JSON.parse(raw);
+          Object.entries(obj).forEach(([code, { rate, sym }]) => {
+            FX[code]  = rate;
+            SYM[code] = sym || code;
+          });
+          return obj;
+        }
+      } catch {}
+      return {};
+    }
+
+    // CoinGecko IDs for common crypto tickers
+    const COINGECKO_IDS = {
+      BTC: 'bitcoin', ETH: 'ethereum', ADA: 'cardano', DOT: 'polkadot',
+      IOTA: 'iota', SOL: 'solana', XRP: 'ripple', BNB: 'binancecoin',
+      DOGE: 'dogecoin', MATIC: 'matic-network', AVAX: 'avalanche-2',
+      LINK: 'chainlink', UNI: 'uniswap', LTC: 'litecoin', ATOM: 'cosmos',
+    };
+
+    // Convert a foreign-currency amount to ILS
+    function toILS(amount, currency) {
+      if (!amount || !currency || currency === 'ILS') return amount || 0;
+      return amount / (FX[currency] || 1);
+    }
+
+    // Format a foreign-currency amount (e.g. "$15,000")
+    function fmtForeign(amount, currency) {
+      if (amount == null) return '—';
+      const sym = SYM[currency] || currency;
+      return `${sym} ${Math.round(amount).toLocaleString('en-US')}`;
+    }
+
+    function fmt(n, cur = 'ILS', { compact = false, sign = false } = {}) {
+      if (n == null || isNaN(n)) return '—';
+      const v = n * FX[cur];
+      const s = (sign && v > 0) ? '+' : '';
+      if (compact) {
+        if (Math.abs(v) >= 1_000_000) return `${s}${SYM[cur]} ${(v / 1_000_000).toFixed(2)}M`;
+        if (Math.abs(v) >= 1_000)     return `${s}${SYM[cur]} ${(v / 1_000).toFixed(1)}K`;
+        return `${s}${SYM[cur]} ${Math.round(v)}`;
+      }
+      return `${s}${SYM[cur]} ${Math.round(v).toLocaleString('en-US')}`;
+    }
+
+    function maskVal(str, masked) {
+      if (!masked) return str;
+      return str.replace(/[0-9,.KMB]/g, '•').replace(/•+/g, '••••');
+    }
+
+    // Capital gains tax: 25% on gains above cost basis, only for taxable items with a known cost basis
+    function netOfTax(value, item) {
+      if (!item || !item.taxable || !(item.costBasis > 0)) return value;
+      return value - Math.max(0, value - item.costBasis) * 0.25;
+    }
+
+    // Pension future value at retirement age
+    const PERSON_AGES   = { יהונתן: 43, יעל: 41 };
+    const RETIRE_AGES   = { יהונתן: 67, יעל: 65 };
+    // Real net annual return (not nominal): factors in expected inflation and
+    // fund management fees, matching the conservative model insurance companies
+    // and pension funds use for projected-annuity calculators. Do not swap in a
+    // raw nominal market-return figure here — it will overstate the annuity.
+    const PENSION_RATE  = 0.0341; // 3.41% annual real return, net of fees/inflation
+    // מקדם המרה — Israeli annuity conversion coefficient per retirement age
+    // (Central Bureau of Statistics life-expectancy tables, approximate)
+    const PENSION_KOEF  = { יהונתן: 200, יעל: 240 };
+
+    function pensionFV(pv, item) {
+      const curAge    = PERSON_AGES[item.person];
+      const retireAge = RETIRE_AGES[item.person];
+      if (!curAge || !retireAge) return null;
+      const n = retireAge - curAge;
+      if (n <= 0) return pv;
+      return Math.round(pv * Math.pow(1 + PENSION_RATE, n));
+    }
+
+    function pensionMonthly(fv, item) {
+      const koef = PENSION_KOEF[item.person];
+      if (!koef || !fv) return null;
+      return Math.round(fv / koef);
+    }
+
+    // Format large pension numbers in Hebrew: "₪ 7.45 מיליון"
+    function fmtMil(n) {
+      if (n == null) return '—';
+      if (Math.abs(n) >= 1_000_000) return `₪ ${(n / 1_000_000).toFixed(2)} מיליון`;
+      if (Math.abs(n) >= 1_000)     return `₪ ${(n / 1_000).toFixed(0)}K`;
+      return fmt(n);
+    }
+
+    // ILS value of a single item, regardless of category type
+    function itemILS(catId, item, liveCryptoPrices = {}) {
+      if (catId === 'bank')   return toILS(item.foreignAmount ?? item.value ?? 0, item.currency || 'ILS');
+      if (catId === 'crypto') {
+        const live = liveCryptoPrices[item.ticker];
+        return live != null ? live * (item.qty || 0) : (item.marketValue || 0);
+      }
+      return item.value || 0;
+    }
+
+    function calcNetWorth(holdings, liveCryptoPrices = {}) {
+      const catTotals = {};
+      catTotals.pension  = (holdings.pension || []).reduce((s,x) => s + (x.value || 0), 0);
+      catTotals.savings  = (holdings.savings || []).reduce((s,x) => s + netOfTax(x.value || 0, x), 0);
+      catTotals.stocks   = (holdings.stocks  || []).reduce((s,x) => s + netOfTax(x.value || 0, x), 0);
+      catTotals.crypto   = (holdings.crypto  || []).reduce((s,x) => {
+        const live = liveCryptoPrices[x.ticker] != null
+          ? liveCryptoPrices[x.ticker] * (x.qty || 0)
+          : null;
+        return s + (live ?? x.marketValue ?? 0);
+      }, 0);
+      catTotals.bank     = (holdings.bank || []).reduce((s,x) => s + toILS(x.foreignAmount ?? x.value ?? 0, x.currency || 'ILS'), 0);
+      const total = Object.values(catTotals).reduce((s,v) => s + v, 0);
+      return { catTotals, total };
+    }
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+      return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    function timeSinceLabel(iso) {
+      if (!iso) return null;
+      const days = Math.round((Date.now() - new Date(iso)) / 86400000);
+      if (days === 0) return 'היום';
+      if (days === 1) return 'אתמול';
+      if (days < 7)   return `לפני ${days} ימים`;
+      return `מ-${formatDate(iso)}`;
+    }
+
+    const LS_KEY      = 'hahon-sheli-v3';
+    const DATA_VER    = 3;
+
+    let _ridCounter = 0;
+    function nextRid() { return `r${Date.now().toString(36)}${(_ridCounter++).toString(36)}`; }
+
+    // Migrate saved data to add taxable/costBasis/person fields if missing
+    function migrateHoldings(h) {
+      if (!h) return h;
+      Object.values(h).forEach(list => (list || []).forEach(item => {
+        if (!item._rid) item._rid = nextRid();
+      }));
+      (h.stocks || []).forEach(item => {
+        if (item.taxable === undefined) { item.taxable = true; item.costBasis = item.costBasis ?? 0; }
+      });
+      (h.savings || []).forEach(item => {
+        if (item.taxable === undefined) {
+          item.taxable = item.name.includes('גמל להשקעה');
+          if (item.taxable) item.costBasis = item.costBasis ?? 0;
+        }
+      });
+      (h.pension || []).forEach(item => {
+        if (!item.person) {
+          item.person = item.name.includes('יעל') ? 'יעל' : 'יהונתן';
+        }
+      });
+      return h;
+    }
+
+    // Ensure all category arrays always exist (guards against empty/partial data)
+    function normalizeHoldings(h) {
+      const d = DEFAULT_HOLDINGS;
+      return {
+        pension: Array.isArray(h.pension) ? h.pension : d.pension,
+        savings: Array.isArray(h.savings) ? h.savings : d.savings,
+        stocks:  Array.isArray(h.stocks)  ? h.stocks  : d.stocks,
+        crypto:  Array.isArray(h.crypto)  ? h.crypto  : d.crypto,
+        bank:    Array.isArray(h.bank)    ? h.bank    : d.bank,
+      };
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (!parsed.version || parsed.version < DATA_VER) {
+            parsed.snapshots = [];
+            parsed.version   = DATA_VER;
+          }
+          parsed.current = normalizeHoldings(parsed.current || {});
+          migrateHoldings(parsed.current);
+          (parsed.snapshots || []).forEach(s => {
+            s.holdings = normalizeHoldings(s.holdings || {});
+            migrateHoldings(s.holdings);
+          });
+          return parsed;
+        }
+      } catch {}
+      const fresh = JSON.parse(JSON.stringify(DEFAULT_HOLDINGS));
+      migrateHoldings(fresh);
+      return { current: fresh, snapshots: [], version: DATA_VER };
+    }
+
+    function saveState(state) {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
+    }
+
+    // ─────────────────────────────────────────────────────
+    // CLOUD SYNC (JSONBin)
+    // ─────────────────────────────────────────────────────
+
+    const SYNC_CFG_KEY = 'hahon-sync-config'; // { apiKey, binId }
+
+    function loadSyncConfig() {
+      try { const r = localStorage.getItem(SYNC_CFG_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
+    }
+    function saveSyncConfig(cfg) {
+      try { localStorage.setItem(SYNC_CFG_KEY, JSON.stringify(cfg)); } catch {}
+    }
+
+    const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b';
+
+    async function fetchFromJsonBin({ apiKey, binId }) {
+      const r = await fetch(`${JSONBIN_BASE}/${binId}/latest`, {
+        headers: { 'X-Master-Key': apiKey }
+      });
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      return d.record; // JSONBin wraps data in { record: ... }
+    }
+
+    async function pushToJsonBin({ apiKey, binId }, data) {
+      const r = await fetch(`${JSONBIN_BASE}/${binId}`, {
+        method: 'PUT',
+        headers: { 'X-Master-Key': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!r.ok) throw new Error(r.status);
+    }
+
+    // ─────────────────────────────────────────────────────
+    // COMPONENTS
+    // ─────────────────────────────────────────────────────
+
+    function Pill({ children, color = '#10B981' }) {
+      return (
+        <span style={{ display:'inline-flex', alignItems:'center',
+          padding:'3px 10px', borderRadius:999, fontSize:11, fontWeight:600,
+          background:`${color}1A`, color }}>
+          {children}
+        </span>
+      );
+    }
+
+    function Avatar({ name, size=32 }) {
+      const initials = name.split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase();
+      return (
+        <div style={{ width:size, height:size, borderRadius:'50%',
+          background:'#0B1F1B', color:'#10B981',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontSize:size*0.36, fontWeight:700, flexShrink:0 }}>
+          {initials}
+        </div>
+      );
+    }
+
+    function IconBtn({ onClick, title, children, active }) {
+      return (
+        <button onClick={onClick} title={title}
+          style={{ width:34, height:34, borderRadius:9, border:'none',
+            background: active ? 'var(--accent)' : 'var(--surface-2)',
+            color: active ? 'white' : 'var(--ink-2)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:15, cursor:'pointer',
+            transition:'background 0.15s, color 0.15s',
+            border: active ? 'none' : '1px solid var(--border)',
+          }}>
+          {children}
+        </button>
+      );
+    }
+
+    // ── Delta vs. previous snapshot: "+₪ 12.3K · +1.9%" ──
+    function DeltaTag({ cur, prev, masked, size = 11 }) {
+      if (prev == null || !isFinite(prev)) return null;
+      const d = cur - prev;
+      if (Math.round(d) === 0) return null;
+      const up  = d > 0;
+      const pct = prev !== 0 ? Math.abs(d / prev * 100) : null;
+      const txt = `${up ? '+' : '−'}${fmt(Math.abs(d), 'ILS', { compact: true })}` +
+                  (pct != null && pct < 999 ? ` · ${up ? '+' : '−'}${pct.toFixed(1)}%` : '');
+      return (
+        <span className={`number-val${masked ? ' masked' : ''}`}
+              style={{ fontSize: size, fontWeight: 600, direction: 'ltr',
+                       fontVariantNumeric: 'tabular-nums',
+                       color: up ? '#059669' : '#DC2626' }}>
+          {maskVal(txt, masked)}
+        </span>
+      );
+    }
+
+    // ── Inline SVG icons (lucide-style, stroke = currentColor) ──
+    function Icon({ name, size = 16 }) {
+      const paths = {
+        history: <><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15.5 14" /></>,
+        pencil:  <><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></>,
+        gear:    <><circle cx="12" cy="12" r="3.2" /><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1" /></>,
+        trend:   <><polyline points="3 17 9 11 13 15 21 7" /><polyline points="15 7 21 7 21 13" /></>,
+        table:   <><rect x="3" y="4" width="18" height="16" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="9" y1="4" x2="9" y2="20" /></>,
+      };
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ display:'block', flexShrink:0 }}>
+          {paths[name]}
+        </svg>
+      );
+    }
+
+    // ── Net-worth history chart (SVG area chart over snapshots) ──
+    function NetWorthChart({ snapshots, currentTotal, masked, accent }) {
+      const points = [
+        ...snapshots.map(s => ({ t: new Date(s.date).getTime(), v: calcNetWorth(s.holdings).total })),
+        { t: Date.now(), v: currentTotal },
+      ].filter(p => p.v > 0);
+      if (points.length < 2) return null;
+
+      const W = 640, H = 110, P = 8;
+      const vs = points.map(p => p.v);
+      const minV = Math.min(...vs), maxV = Math.max(...vs);
+      const spanV = (maxV - minV) || maxV * 0.1 || 1;
+      const minT = points[0].t, maxT = points[points.length - 1].t;
+      const spanT = (maxT - minT) || 1;
+      const X = p => P + ((p.t - minT) / spanT) * (W - 2 * P);
+      const Y = p => P + (1 - (p.v - minV) / spanV) * (H - 2 * P);
+
+      const line = points.map((p, i) => `${i ? 'L' : 'M'}${X(p).toFixed(1)},${Y(p).toFixed(1)}`).join(' ');
+      const area = `${line} L${X(points[points.length-1]).toFixed(1)},${H} L${X(points[0]).toFixed(1)},${H} Z`;
+      const last = points[points.length - 1];
+
+      return (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 6 }}>
+            <span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.12em',
+                           textTransform:'uppercase', color:'rgba(244,251,248,0.5)' }}>
+              מסלול ההון · {points.length} נקודות
+            </span>
+            <span className={`number-val${masked?' masked':''}`}
+                  style={{ fontSize:11, color:'rgba(244,251,248,0.6)', direction:'ltr' }}>
+              {maskVal(`${fmt(minV,'ILS',{compact:true})} – ${fmt(maxV,'ILS',{compact:true})}`, masked)}
+            </span>
+          </div>
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
+               style={{ width:'100%', height:96, display:'block' }}
+               className={masked ? 'masked' : ''}>
+            <defs>
+              <linearGradient id="nwFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"  stopColor={accent} stopOpacity="0.34" />
+                <stop offset="100%" stopColor={accent} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {[0.25, 0.5, 0.75].map(f => (
+              <line key={f} x1={P} x2={W-P} y1={H*f} y2={H*f}
+                    stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
+            ))}
+            <path d={area} fill="url(#nwFill)" />
+            <path d={line} fill="none" stroke={accent} strokeWidth="2.5"
+                  strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            <circle cx={X(last)} cy={Y(last)} r="4" fill={accent}
+                    stroke="rgba(11,31,27,1)" strokeWidth="2" />
+          </svg>
+          <div style={{ display:'flex', justifyContent:'space-between', marginTop:4, direction:'ltr',
+                        fontSize:10, color:'rgba(244,251,248,0.45)' }}>
+            <span>{formatDate(new Date(minT).toISOString())}</span>
+            <span>היום</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Allocation bar: proportional strip + legend ──
+    function AllocationBar({ catTotals, masked }) {
+      const total = Object.values(catTotals).reduce((s,v) => s + v, 0);
+      if (!total) return null;
+      const segs = CAT_META
+        .map(c => ({ ...c, val: catTotals[c.id] || 0, pct: (catTotals[c.id] || 0) / total * 100 }))
+        .filter(s => s.pct > 0.2);
+      return (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ display:'flex', height:10, borderRadius:999, overflow:'hidden',
+                        background:'rgba(255,255,255,0.08)' }}>
+            {segs.map(s => (
+              <div key={s.id} className="alloc-seg" title={`${s.label} · ${s.pct.toFixed(1)}%`}
+                   style={{ flexGrow:s.pct, flexBasis:0, background:s.color,
+                            boxShadow:'inset 0 0 0 0.5px rgba(11,31,27,0.35)' }} />
+            ))}
+          </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:'6px 16px', marginTop:10 }}>
+            {segs.map(s => (
+              <span key={s.id} style={{ display:'inline-flex', alignItems:'center', gap:6,
+                                        fontSize:11, color:'rgba(244,251,248,0.72)' }}>
+                <span style={{ width:8, height:8, borderRadius:3, background:s.color }} />
+                {s.label}
+                <strong className={`number-val${masked?' masked':''}`}
+                        style={{ fontVariantNumeric:'tabular-nums', color:'rgba(244,251,248,0.95)' }}>
+                  {maskVal(`${s.pct.toFixed(1)}%`, masked)}
+                </strong>
+              </span>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // KPI card
+    function KpiCard({ cat, catTotal, prevTotal, masked, currency }) {
+      const worstCaseAfterTax = cat.id === 'stocks' ? Math.round(catTotal * 0.75) : null;
+      return (
+        <div className="kpi-card" style={{ borderTop:`3px solid ${cat.color}` }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ width:9, height:9, borderRadius:3, background:cat.color, flexShrink:0 }} />
+            <span style={{ fontSize:12, fontWeight:600, color:'var(--ink-2)' }}>{cat.label}</span>
+          </div>
+          <div className={`number-val${masked?' masked':''}`}
+               style={{ fontSize:20, fontWeight:700, letterSpacing:'-0.03em',
+                        color:'var(--ink)', fontVariantNumeric:'tabular-nums',
+                        direction:'ltr', textAlign:'right' }}>
+            {fmt(catTotal, currency)}
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span style={{ fontSize:11, color:'var(--ink-3)' }}>{(cat.items || []).length} פריטים</span>
+            <DeltaTag cur={catTotal} prev={prevTotal} masked={masked} size={10} />
+          </div>
+          {worstCaseAfterTax && (
+            <div className={`number-val${masked?' masked':''}`}
+                 style={{ fontSize:11, color:'var(--ink-3)', direction:'ltr', textAlign:'right',
+                          borderTop:'1px solid var(--border-2)', paddingTop:6, marginTop:-2 }}>
+              אחרי מס (מקס׳): {maskVal(fmt(worstCaseAfterTax, currency), masked)}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function HoldingRow({ item, catId, itemIdx, editMode, onValueChange, onDeleteItem,
+                          masked, currency, isCrypto, customCurrencies, onAddCurrency,
+                          liveCryptoPrices, getPrevItemVal }) {
+      const prevVal = getPrevItemVal ? getPrevItemVal(catId, item) : null;
+      const isBank = catId === 'bank';
+      const [addCurForm, setAddCurForm] = useState(null); // null | {code:'', rate:'', sym:''}
+
+      // Live crypto market value (qty × live price), if available
+      const liveMarket = isCrypto && liveCryptoPrices?.[item.ticker]
+        ? liveCryptoPrices[item.ticker] * (item.qty || 0)
+        : null;
+
+      // ── display values ──
+      const ilsValue = isBank
+        ? toILS(item.foreignAmount ?? item.value ?? 0, item.currency || 'ILS')
+        : item.value;
+
+      // ── bank: live ILS preview during edit ──
+      const liveILS = isBank && editMode
+        ? toILS(parseFloat(String(item._editForeignAmount||'').replace(/,/g,''))||0, item._editCurrency||'ILS')
+        : null;
+
+      function handleChange(field, strField, raw) {
+        const num = parseFloat(raw.replace(/,/g, '')) || 0;
+        onValueChange(catId, itemIdx, { [strField]: raw, [field]: num, _touched: true });
+      }
+
+      // In edit mode: red styling until this row's amount was typed into
+      const editCls = `edit-input${item._touched ? '' : ' stale'}`;
+
+      function confirmAddCurrency() {
+        const code = (addCurForm.code || '').trim().toUpperCase();
+        const rate = parseFloat(addCurForm.rate);
+        const sym  = (addCurForm.sym || '').trim() || code;
+        if (!code || !rate) return;
+        onAddCurrency(code, rate, sym);
+        onValueChange(catId, itemIdx, { _editCurrency: code, currency: code });
+        setAddCurForm(null);
+      }
+
+      const allCurrencies = [...CURRENCIES, ...Object.keys(customCurrencies || {})].filter((v,i,a) => a.indexOf(v)===i);
+
+      return (
+        <div className="holding-row" style={{ display:'flex', alignItems:'center', gap:12,
+          padding:'10px 0', borderBottom:'1px solid var(--border)' }}>
+
+          {/* Delete button */}
+          {editMode && (
+            <button onClick={() => onDeleteItem(catId, itemIdx)} title="הסר"
+              style={{ flexShrink:0, width:22, height:22, borderRadius:6, border:'none',
+                background:'#FEE2E2', color:'#EF4444', fontSize:14, fontWeight:700,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                cursor:'pointer', lineHeight:1, padding:0 }}>×</button>
+          )}
+
+          {/* Name: editable input in edit mode, static in view mode */}
+          <div style={{ flex:1, minWidth:0 }}>
+            {editMode ? (
+              <input type="text" placeholder="שם הפריט..."
+                value={item.name ?? ''}
+                onChange={e => onValueChange(catId, itemIdx, { name: e.target.value })}
+                style={{ width:'100%', background:'transparent', border:'none',
+                  borderBottom:'1px dashed var(--border)', fontSize:13, color:'var(--ink)',
+                  fontFamily:'inherit', outline:'none', padding:'2px 0',
+                  textAlign:'right', direction:'rtl' }} />
+            ) : (
+              <>
+                <div style={{ fontSize:13, color:'var(--ink)' }}>{item.name}</div>
+                {item.note && <div style={{ fontSize:11, color:'var(--ink-3)', marginTop:2 }}>{item.note}</div>}
+                {item.ticker && (
+                  <div style={{ fontSize:11, color:'var(--ink-3)', marginTop:2, direction:'ltr', textAlign:'right' }}>
+                    {item.qty} {item.ticker}
+                  </div>
+                )}
+                {catId === 'pension' && item.person && (
+                  <span style={{ display:'inline-flex', marginTop:4,
+                    fontSize:10, fontWeight:600, color:'var(--ink-3)',
+                    background:'var(--surface-2)', border:'1px solid var(--border)',
+                    borderRadius:999, padding:'1px 8px' }}>
+                    {item.person}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* ── BANK: foreign amount + currency ── */}
+          {isBank ? (
+            editMode ? (
+              <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0, position:'relative' }}>
+                {/* Live ILS */}
+                <div className={`number-val${masked?' masked':''}`}
+                     style={{ fontSize:12, color:'var(--ink-3)', direction:'ltr', minWidth:90, textAlign:'left' }}>
+                  ≈ {maskVal(fmt(liveILS), masked)}
+                </div>
+                {/* Foreign amount input */}
+                <input className={editCls} type="text" inputMode="numeric"
+                  style={{ width:90 }}
+                  value={item._editForeignAmount ?? ''}
+                  onChange={e => handleChange('foreignAmount', '_editForeignAmount', e.target.value)} />
+                {/* Currency selector */}
+                <select value={item._editCurrency ?? 'ILS'}
+                  onChange={e => {
+                    const cur = e.target.value;
+                    if (cur === '__add__') {
+                      setAddCurForm({ code: '', rate: '', sym: '' });
+                    } else {
+                      onValueChange(catId, itemIdx, { _editCurrency: cur, currency: cur });
+                    }
+                  }}
+                  style={{ fontFamily:'inherit', fontSize:12, fontWeight:600,
+                           border:'1.5px solid var(--accent)', borderRadius:6,
+                           padding:'3px 6px', background:'#F0FDF7', color:'var(--ink)',
+                           cursor:'pointer', outline:'none' }}>
+                  {allCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option disabled>──────</option>
+                  <option value="__add__">+ הוסף מטבע</option>
+                </select>
+
+                {/* Discreet add-currency mini form */}
+                {addCurForm && (
+                  <div style={{ position:'absolute', zIndex:200, background:'white',
+                    border:'1px solid var(--border)', borderRadius:10,
+                    padding:'12px 14px', boxShadow:'0 6px 24px rgba(0,0,0,0.1)',
+                    display:'flex', flexDirection:'column', gap:8, minWidth:200,
+                    top:'100%', left:0, marginTop:4 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:'var(--ink-2)' }}>הוספת מטבע</div>
+                    <div style={{ display:'flex', gap:6 }}>
+                      <input placeholder="קוד (למשל GBP)" maxLength={4}
+                        value={addCurForm.code}
+                        onChange={e => setAddCurForm(f => ({...f, code: e.target.value.toUpperCase()}))}
+                        onKeyDown={e => e.key==='Enter' && confirmAddCurrency()}
+                        style={{ width:90, fontFamily:'inherit', fontSize:12, padding:'4px 8px',
+                          border:'1px solid var(--border)', borderRadius:6, outline:'none',
+                          direction:'ltr', textAlign:'center' }} />
+                      <input placeholder="₪ לכל יחידה" type="number" step="any" min="0"
+                        value={addCurForm.rate}
+                        onChange={e => setAddCurForm(f => ({...f, rate: e.target.value}))}
+                        onKeyDown={e => e.key==='Enter' && confirmAddCurrency()}
+                        style={{ width:90, fontFamily:'inherit', fontSize:12, padding:'4px 8px',
+                          border:'1px solid var(--border)', borderRadius:6, outline:'none',
+                          direction:'ltr', textAlign:'right' }} />
+                    </div>
+                    <div style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
+                      <button onClick={() => setAddCurForm(null)}
+                        style={{ fontFamily:'inherit', fontSize:11, padding:'4px 10px',
+                          border:'1px solid var(--border)', borderRadius:6,
+                          background:'white', cursor:'pointer', color:'var(--ink-2)' }}>ביטול</button>
+                      <button onClick={confirmAddCurrency}
+                        style={{ fontFamily:'inherit', fontSize:11, padding:'4px 10px',
+                          border:'none', borderRadius:6, background:'var(--accent)',
+                          color:'white', cursor:'pointer', fontWeight:600 }}>הוסף</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* View mode: foreign amount on right, ILS on left */
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end',
+                            flexShrink:0, minWidth:130 }}>
+                <div className={`number-val${masked?' masked':''}`}
+                     style={{ fontSize:13, fontWeight:700, color:'var(--ink)',
+                              fontVariantNumeric:'tabular-nums', direction:'ltr' }}>
+                  {maskVal(fmtForeign(item.foreignAmount, item.currency), masked)}
+                </div>
+                {item.currency !== 'ILS' && (
+                  <div className={`number-val${masked?' masked':''}`}
+                       style={{ fontSize:11, color:'var(--ink-3)', direction:'ltr', marginTop:2 }}>
+                    ≈ {maskVal(fmt(ilsValue), masked)}
+                  </div>
+                )}
+                <DeltaTag cur={ilsValue || 0} prev={prevVal} masked={masked} size={10} />
+              </div>
+            )
+
+          /* ── CRYPTO ── */
+          ) : isCrypto ? (
+            editMode ? (
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                  <span style={{ fontSize:10, color:'var(--ink-3)' }}>שוק ₪</span>
+                  <input className={editCls} type="text" inputMode="numeric"
+                    value={item._editMarket ?? ''}
+                    onChange={e => handleChange('marketValue', '_editMarket', e.target.value)} />
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                  <span style={{ fontSize:10, color:'var(--ink-3)' }}>כמות</span>
+                  <input className={editCls} type="text" inputMode="decimal"
+                    style={{ width:80 }}
+                    value={item._editQty ?? ''}
+                    onChange={e => {
+                      const qty = parseFloat(e.target.value.replace(/,/g,'')) || 0;
+                      const livePrice = liveCryptoPrices?.[item._editTicker || item.ticker];
+                      const updates = { _editQty: e.target.value, qty, _touched: true };
+                      if (livePrice) updates._editMarket = String(Math.round(livePrice * qty));
+                      onValueChange(catId, itemIdx, updates);
+                    }} />
+                  <input type="text" placeholder="BTC"
+                    value={item._editTicker ?? ''}
+                    onChange={e => onValueChange(catId, itemIdx, { _editTicker: e.target.value.toUpperCase(), ticker: e.target.value.trim().toUpperCase() })}
+                    style={{ width:44, fontFamily:'inherit', fontSize:11, fontWeight:700,
+                      background:'var(--surface-2)', border:'1px solid var(--border)',
+                      borderRadius:6, padding:'4px 6px', textAlign:'center',
+                      direction:'ltr', outline:'none', color:'var(--ink)' }} />
+                </div>
+              </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end',
+                            flexShrink:0, minWidth:130 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                  {liveMarket !== null && (
+                    <span title="שער חי" style={{ width:6, height:6, borderRadius:'50%',
+                      background:'#10B981', flexShrink:0 }} />
+                  )}
+                  <div className={`number-val${masked?' masked':''}`}
+                       style={{ fontSize:13, fontWeight:700, color:'var(--ink)',
+                                fontVariantNumeric:'tabular-nums', direction:'ltr' }}>
+                    {maskVal(fmt(liveMarket ?? item.marketValue ?? 0), masked)}
+                  </div>
+                </div>
+                <DeltaTag cur={liveMarket ?? item.marketValue ?? 0} prev={prevVal} masked={masked} size={10} />
+              </div>
+            )
+
+          /* ── ALL OTHER CATEGORIES ── */
+          ) : editMode ? (
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
+              <input className={editCls} type="text" inputMode="numeric"
+                value={item._edit ?? ''}
+                onChange={e => handleChange('value', '_edit', e.target.value)} />
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end',
+                          flexShrink:0, minWidth:120 }}>
+              <div className={`number-val${masked?' masked':''}`}
+                   style={{ fontSize:13, fontWeight:600, color:'var(--ink)',
+                            fontVariantNumeric:'tabular-nums', direction:'ltr', textAlign:'left' }}>
+                {maskVal(fmt(ilsValue), masked)}
+              </div>
+              <DeltaTag cur={ilsValue || 0} prev={prevVal} masked={masked} size={10} />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Category accordion
+    function CategoryAccordion({ cat, catTotal, items, isOpen, onToggle,
+                                  editMode, onValueChange, onAddItem, onDeleteItem,
+                                  masked, currency, isCrypto, customCurrencies, onAddCurrency,
+                                  liveCryptoPrices, getPrevItemVal }) {
+      return (
+        <div>
+          <button className="cat-trigger" onClick={onToggle}
+            style={{ width:'100%', display:'flex', alignItems:'center',
+              justifyContent:'space-between', padding:'14px 26px',
+              background:'transparent', border:'none',
+              borderTop:'1px solid var(--border-2)',
+              cursor:'pointer', textAlign:'right',
+              transition:'background 0.15s' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12, flex:1 }}>
+              <div style={{ width:4, height:36, borderRadius:99, background:cat.color, flexShrink:0 }} />
+              <div style={{ textAlign:'right' }}>
+                <div style={{ fontSize:14, fontWeight:600, color:'var(--ink)' }}>{cat.label}</div>
+                <div style={{ fontSize:11, color:'var(--ink-3)', marginTop:2 }}>
+                  {items.length} פריטים{cat.note ? ` · ${cat.note}` : ''}
+                </div>
+              </div>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+              <div className={`number-val${masked?' masked':''}`}
+                   style={{ fontSize:14, fontWeight:700, color:'var(--ink)',
+                            fontVariantNumeric:'tabular-nums', direction:'ltr' }}>
+                {maskVal(fmt(catTotal, currency), masked)}
+              </div>
+              <span className={`chevron${isOpen?' open':''}`}>›</span>
+            </div>
+          </button>
+
+          <div className={`accordion-body${isOpen?' open':''}`}>
+            <div style={{ background:'var(--surface-2)', padding:'4px 26px 10px',
+                          borderTop:'1px solid var(--border-2)' }}>
+              {items.map((item, i) => (
+                <HoldingRow key={item._rid ?? i} item={item} catId={cat.id} itemIdx={i}
+                  editMode={editMode} onValueChange={onValueChange} onDeleteItem={onDeleteItem}
+                  masked={masked} currency={currency} isCrypto={isCrypto}
+                  customCurrencies={customCurrencies} onAddCurrency={onAddCurrency}
+                  liveCryptoPrices={liveCryptoPrices} getPrevItemVal={getPrevItemVal} />
+              ))}
+
+              {/* Pension FV summary by person */}
+              {cat.id === 'pension' && !editMode && (() => {
+                const byPerson = {};
+                items.forEach(item => {
+                  const p = item.person || '—';
+                  if (!byPerson[p]) byPerson[p] = { current: 0, fv: 0 };
+                  byPerson[p].current += item.value || 0;
+                  byPerson[p].fv += pensionFV(item.value || 0, item) || 0;
+                });
+                const entries = Object.entries(byPerson);
+                return (
+                  <div style={{ margin:'10px 0 8px', padding:'14px 16px',
+                    background:'var(--surface)', borderRadius:12,
+                    border:'1px solid var(--border-2)' }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:'var(--ink-3)',
+                      letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:10 }}>
+                      סיכום · תשואה {(PENSION_RATE * 100).toFixed(2).replace(/\.?0+$/, '')}% שנתי עד גיל פרישה
+                    </div>
+                    {entries.map(([person, { current, fv }], i) => {
+                      const koef       = PENSION_KOEF[person];
+                      const retireAge  = RETIRE_AGES[person] || 67;
+                      const monthly    = koef && fv ? Math.round(fv / koef) : null;
+                      return (
+                        <div key={person} style={{ display:'flex', justifyContent:'space-between',
+                          alignItems:'center', padding:'9px 0',
+                          borderBottom: i < entries.length - 1 ? '1px solid var(--border-2)' : 'none' }}>
+                          <div>
+                            <div style={{ fontSize:13, fontWeight:600, color:'var(--ink)' }}>{person}</div>
+                            <div style={{ fontSize:10, color:'var(--ink-3)', marginTop:2 }}>
+                              גיל פרישה {retireAge} · מקדם {koef}
+                            </div>
+                          </div>
+                          <div style={{ textAlign:'left', direction:'rtl' }}>
+                            <div className={`number-val${masked?' masked':''}`}
+                                 style={{ fontSize:12, color:'var(--ink-2)', fontVariantNumeric:'tabular-nums' }}>
+                              היום: {maskVal(fmt(current), masked)}
+                            </div>
+                            <div className={`number-val${masked?' masked':''}`}
+                                 style={{ fontSize:13, fontWeight:700, color:'var(--accent)',
+                                          marginTop:3 }}>
+                              בגיל {retireAge}: {maskVal(fmtMil(fv), masked)}
+                            </div>
+                            {monthly && (
+                              <div className={`number-val${masked?' masked':''}`}
+                                   style={{ fontSize:12, fontWeight:600, color:'var(--ink-2)',
+                                            fontVariantNumeric:'tabular-nums', marginTop:2 }}>
+                                קצבה: {maskVal(fmt(monthly), masked)}/חודש
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              {editMode && (
+                <button onClick={() => onAddItem(cat.id)}
+                  style={{ marginTop:8, width:'100%', padding:'8px 12px',
+                    background:'transparent', border:'1.5px dashed var(--border)',
+                    borderRadius:8, fontSize:12, fontWeight:600, color:'var(--ink-3)',
+                    cursor:'pointer', textAlign:'center', transition:'all 0.15s',
+                    fontFamily:'inherit' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.color='var(--ink-3)'; }}>
+                  + הוסף פריט
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Assets-over-time table: rows = assets, columns = update dates ──
+    function TableView({ appState, liveCryptoPrices, masked, onClose }) {
+      // Columns: "today" first (rightmost in RTL), then snapshots newest→oldest
+      const cols = [
+        { label: 'היום', holdings: appState.current, live: liveCryptoPrices },
+        ...appState.snapshots.map(s => ({ label: formatDate(s.date), holdings: s.holdings, live: {} })).reverse(),
+      ];
+
+      // Value of a current item inside an arbitrary column, matched by _rid → name
+      const findVal = (col, catId, item) => {
+        const list = col.holdings[catId] || [];
+        const m = list.find(x =>
+          (item._rid && x._rid === item._rid) || (item.name && x.name === item.name));
+        return m ? itemILS(catId, m, col.live) : null;
+      };
+
+      const colTotals = cols.map(col => calcNetWorth(col.holdings, col.live));
+
+      // cell class vs. the chronologically older column (now at i+1, since newest is first)
+      const cellCls = (vals, i) => {
+        if (i >= vals.length - 1 || vals[i] == null || vals[i + 1] == null) return '';
+        const d = Math.round(vals[i]) - Math.round(vals[i + 1]);
+        return d > 0 ? 'cell-up' : d < 0 ? 'cell-down' : '';
+      };
+
+      const num = v => v == null ? '—' : maskVal(fmt(v), masked);
+
+      return (
+        <>
+          <div className="history-overlay" onClick={onClose} style={{ zIndex: 999 }} />
+          <div className="table-panel">
+            <div style={{ padding:'18px 22px 14px', borderBottom:'1px solid var(--border)',
+                          display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div>
+                <div style={{ fontSize:16, fontWeight:700, fontFamily:'var(--serif)' }}>נכסים לאורך זמן</div>
+                <div style={{ fontSize:11, color:'var(--ink-3)', marginTop:2 }}>
+                  {cols.length} עמודות · ירוק = עלה מהעדכון הקודם, אדום = ירד
+                </div>
+              </div>
+              <button onClick={onClose}
+                style={{ background:'none', border:'none', cursor:'pointer',
+                         color:'var(--ink-3)', fontSize:18, padding:'4px 6px' }}>✕</button>
+            </div>
+
+            {appState.snapshots.length === 0 ? (
+              <div style={{ padding:'48px 24px', textAlign:'center', color:'var(--ink-3)', fontSize:13 }}>
+                עדיין אין עדכונים שמורים.<br/>שמור עדכון ראשון כדי להתחיל לצבור עמודות.
+              </div>
+            ) : (
+              <div className="table-scroll">
+                <table className="asset-table" dir="rtl">
+                  <thead>
+                    <tr>
+                      <th className="col-name">נכס</th>
+                      {cols.map((c, i) => <th key={i} className="num">{c.label}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CAT_META.map(cat => {
+                      const items = appState.current[cat.id] || [];
+                      return (
+                        <React.Fragment key={cat.id}>
+                          <tr className="row-cat">
+                            <td className="col-name">
+                              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2,
+                                             background:cat.color, marginLeft:7 }} />
+                              {cat.label}
+                            </td>
+                            {(() => {
+                              const vals = colTotals.map(t => t.catTotals[cat.id]);
+                              return vals.map((v, i) =>
+                                <td key={i} className={`num ${cellCls(vals, i)}`}>{num(v)}</td>);
+                            })()}
+                          </tr>
+                          {items.map(item => {
+                            const vals = cols.map(c => findVal(c, cat.id, item));
+                            return (
+                              <tr key={item._rid ?? item.name}>
+                                <td className="col-name" style={{ paddingRight:30, fontWeight:400,
+                                                                  color:'var(--ink-2)' }} title={item.name}>
+                                  {item.name}
+                                </td>
+                                {vals.map((v, i) =>
+                                  <td key={i} className={`num ${cellCls(vals, i)}`}>{num(v)}</td>)}
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
+                    <tr className="row-total">
+                      <td className="col-name">סך הכל</td>
+                      {colTotals.map((t, i) => {
+                        const vals = colTotals.map(x => x.total);
+                        return <td key={i} className="num"
+                                   style={ Math.round(vals[i]) > Math.round(vals[i+1] ?? vals[i])
+                                     ? { color:'#6EE7B7' }
+                                     : Math.round(vals[i]) < Math.round(vals[i+1] ?? vals[i])
+                                       ? { color:'#FCA5A5' } : {} }>
+                          {num(t.total)}
+                        </td>;
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      );
+    }
+
+    // History panel
+    function HistoryPanel({ snapshots, currentNetWorth, viewingIdx, onView, onDelete, onClose }) {
+      return (
+        <>
+          <div className="history-overlay" onClick={onClose} />
+          <div className="history-panel">
+            <div style={{ padding:'20px 18px 16px', borderBottom:'1px solid var(--border)',
+                          display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div>
+                <div style={{ fontSize:15, fontWeight:700 }}>היסטוריה</div>
+                <div style={{ fontSize:11, color:'var(--ink-3)', marginTop:2 }}>
+                  {snapshots.length} עדכונים שמורים
+                </div>
+              </div>
+              <button onClick={onClose}
+                style={{ background:'none', border:'none', cursor:'pointer',
+                         color:'var(--ink-3)', fontSize:18, padding:'4px 6px' }}>✕</button>
+            </div>
+
+            <div style={{ overflowY:'auto', flex:1 }}>
+              {/* Current */}
+              <div className={`snapshot-card${viewingIdx === null ? ' active' : ''}`}
+                   onClick={() => onView(null)}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700, color:'var(--ink)' }}>הנוכחי</div>
+                    <div style={{ fontSize:11, color:'var(--ink-3)', marginTop:2 }}>עדכון אחרון</div>
+                  </div>
+                  <div style={{ fontSize:14, fontWeight:700, color:'var(--accent)',
+                                direction:'ltr', fontVariantNumeric:'tabular-nums' }}>
+                    {fmt(currentNetWorth)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              {[...snapshots].reverse().map((snap, revIdx) => {
+                const origIdx = snapshots.length - 1 - revIdx;
+                const nw = calcNetWorth(snap.holdings).total;
+                const isActive = viewingIdx === origIdx;
+                const diff = origIdx < snapshots.length - 1
+                  ? nw - calcNetWorth(snapshots[origIdx + 1].holdings).total
+                  : null;
+                return (
+                  <div key={snap.id} className={`snapshot-card${isActive?' active':''}`}
+                       onClick={() => onView(origIdx)}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600, color:'var(--ink)' }}>
+                          {formatDate(snap.date)}
+                        </div>
+                        <div style={{ fontSize:11, color:'var(--ink-3)', marginTop:2 }}>
+                          {snap.label || 'עדכון ידני'}
+                        </div>
+                      </div>
+                      <div style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
+                        <div style={{ textAlign:'left' }}>
+                          <div style={{ fontSize:14, fontWeight:700, color:'var(--ink)',
+                                        direction:'ltr', fontVariantNumeric:'tabular-nums' }}>
+                            {fmt(nw)}
+                          </div>
+                          {diff !== null && (
+                            <div style={{ fontSize:11, color: diff >= 0 ? '#10B981' : '#EF4444',
+                                          direction:'ltr', textAlign:'right', marginTop:2 }}>
+                              {diff >= 0 ? '↑' : '↓'} {fmt(Math.abs(diff), 'ILS', { compact:true })}
+                            </div>
+                          )}
+                        </div>
+                        <button title="מחק עדכון"
+                          onClick={e => { e.stopPropagation(); onDelete(origIdx); }}
+                          style={{ background:'none', border:'none', cursor:'pointer',
+                                   color:'#EF4444', fontSize:13, padding:'2px 4px', lineHeight:1 }}>
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {snapshots.length === 0 && (
+                <div style={{ padding:'32px 18px', textAlign:'center', color:'var(--ink-3)', fontSize:13 }}>
+                  עדיין אין עדכונים קודמים.<br/>
+                  ערוך ושמור כדי לצלם את הנוכחי.
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    // Settings
+    function SettingsPanel({ masked, onMaskToggle, accent, onAccentChange, onClose,
+                             syncConfig, syncStatus, onSyncConnect, onSyncDisconnect, onSyncNow,
+                             onResetHistory }) {
+      const accents = [
+        { value:'#10B981', label:'מנטה' }, { value:'#0F766E', label:'טיל' },
+        { value:'#6366F1', label:'אינדיגו' }, { value:'#F59E0B', label:'זהב' },
+      ];
+      const [form, setForm]       = useState({ apiKey: '', binId: '' });
+      const [formErr, setFormErr] = useState(null);
+      const [connecting, setConnecting] = useState(false);
+
+      async function handleConnect() {
+        if (!form.apiKey.trim() || !form.binId.trim()) { setFormErr('נא למלא את שני השדות'); return; }
+        setConnecting(true); setFormErr(null);
+        try { await onSyncConnect(form); }
+        catch (e) { setFormErr('שגיאה — בדוק שהמפתח ומזהה ה-Bin נכונים'); }
+        setConnecting(false);
+      }
+
+      const statusLabel = { idle:'', loading:'טוען…', saving:'שומר…', ok:'מסונכרן ✓', error:'שגיאת סנכרון ✕' };
+      const statusColor = { ok:'#10B981', error:'#EF4444', loading:'var(--ink-3)', saving:'var(--ink-3)', idle:'' };
+
+      return (
+        <div className="settings-panel" style={{ width:272 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+            <span style={{ fontSize:12, fontWeight:700, letterSpacing:'0.05em', color:'var(--ink-2)' }}>הגדרות</span>
+            <button onClick={onClose}
+              style={{ background:'none', border:'none', cursor:'pointer', color:'var(--ink-3)', fontSize:14 }}>✕</button>
+          </div>
+
+          {/* Privacy toggle */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:500, color:'var(--ink)' }}>מצב פרטיות</div>
+              <div style={{ fontSize:10, color:'var(--ink-3)', marginTop:1 }}>הסתרת סכומים</div>
+            </div>
+            <button onClick={onMaskToggle}
+              style={{ width:34, height:20, borderRadius:999, border:'none', padding:0, cursor:'pointer',
+                background: masked ? '#10B981' : 'rgba(0,0,0,0.15)', position:'relative', transition:'background 0.2s' }}>
+              <span style={{ position:'absolute', top:3, left: masked?17:3, width:14, height:14,
+                borderRadius:'50%', background:'white', boxShadow:'0 1px 3px rgba(0,0,0,0.2)', transition:'left 0.2s' }} />
+            </button>
+          </div>
+
+          {/* Accent colors */}
+          <div style={{ borderTop:'1px solid var(--border)', paddingTop:14, marginBottom:14 }}>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.07em', color:'var(--ink-3)',
+                          textTransform:'uppercase', marginBottom:10 }}>צבע אקסנט</div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {accents.map(a => (
+                <button key={a.value} onClick={() => onAccentChange(a.value)} title={a.label}
+                  style={{ width:28, height:28, borderRadius:8, border:'none', background:a.value, cursor:'pointer',
+                    outline: accent===a.value ? `2px solid ${a.value}` : 'none', outlineOffset:2,
+                    transform: accent===a.value ? 'scale(1.15)' : 'scale(1)', transition:'transform 0.15s' }} />
+              ))}
+              <input type="color" value={accent} onChange={e => onAccentChange(e.target.value)}
+                style={{ width:28, height:28, borderRadius:8, border:'1px solid var(--border)', padding:1, cursor:'pointer' }} />
+            </div>
+          </div>
+
+          {/* Reset history */}
+          <div style={{ borderTop:'1px solid var(--border)', paddingTop:14, marginBottom:14 }}>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.07em', color:'var(--ink-3)',
+                          textTransform:'uppercase', marginBottom:10 }}>היסטוריה</div>
+            <button onClick={() => { if (window.confirm('למחוק את כל ההיסטוריה? הנתונים הנוכחיים יישמרו.')) onResetHistory(); }}
+              style={{ width:'100%', fontFamily:'inherit', fontSize:11, fontWeight:600,
+                padding:'7px 12px', borderRadius:7, border:'1px solid #FCA5A5',
+                background:'#FEF2F2', color:'#EF4444', cursor:'pointer' }}>
+              אפס היסטוריה
+            </button>
+          </div>
+
+          {/* Cloud sync */}
+          <div style={{ borderTop:'1px solid var(--border)', paddingTop:14 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.07em', color:'var(--ink-3)', textTransform:'uppercase' }}>
+                סנכרון ענן
+              </div>
+              {syncStatus && syncStatus !== 'idle' && (
+                <span style={{ fontSize:10, fontWeight:600, color: statusColor[syncStatus] }}>
+                  {statusLabel[syncStatus]}
+                </span>
+              )}
+            </div>
+
+            {syncConfig ? (
+              /* Connected state */
+              <div>
+                <div style={{ fontSize:11, color:'var(--ink-2)', marginBottom:8 }}>
+                  מחובר ל-JSONBin
+                  <span style={{ fontSize:10, color:'var(--ink-3)', marginRight:6 }}>
+                    Bin: …{syncConfig.binId.slice(-6)}
+                  </span>
+                </div>
+                <div style={{ display:'flex', gap:6 }}>
+                  <button onClick={onSyncNow}
+                    style={{ flex:1, fontFamily:'inherit', fontSize:11, fontWeight:600,
+                      padding:'6px 10px', borderRadius:7, border:'1.5px solid var(--accent)',
+                      background:'transparent', color:'var(--accent)', cursor:'pointer' }}>
+                    סנכרן עכשיו
+                  </button>
+                  <button onClick={onSyncDisconnect}
+                    style={{ fontFamily:'inherit', fontSize:11, padding:'6px 10px', borderRadius:7,
+                      border:'1px solid var(--border)', background:'white', color:'var(--ink-3)', cursor:'pointer' }}>
+                    נתק
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Setup form */
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                <input placeholder="Master Key (X-Master-Key)"
+                  value={form.apiKey}
+                  onChange={e => setForm(f => ({...f, apiKey: e.target.value}))}
+                  style={{ fontFamily:'inherit', fontSize:11, padding:'6px 8px', borderRadius:7,
+                    border:'1px solid var(--border)', outline:'none', direction:'ltr' }} />
+                <input placeholder="Bin ID"
+                  value={form.binId}
+                  onChange={e => setForm(f => ({...f, binId: e.target.value}))}
+                  style={{ fontFamily:'inherit', fontSize:11, padding:'6px 8px', borderRadius:7,
+                    border:'1px solid var(--border)', outline:'none', direction:'ltr' }} />
+                {formErr && <div style={{ fontSize:10, color:'#EF4444' }}>{formErr}</div>}
+                <button onClick={handleConnect} disabled={connecting}
+                  style={{ fontFamily:'inherit', fontSize:12, fontWeight:600,
+                    padding:'7px 12px', borderRadius:7, border:'none',
+                    background:'var(--accent)', color:'white', cursor:'pointer',
+                    opacity: connecting ? 0.7 : 1 }}>
+                  {connecting ? 'מתחבר…' : 'התחבר'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ─────────────────────────────────────────────────────
+    // CATEGORY DEFINITIONS (labels, colors, ids)
+    // ─────────────────────────────────────────────────────
+
+    const CAT_META = [
+      { id:'pension',  label:'פנסיה',   color:'#0F766E', isCrypto:false },
+      { id:'savings',  label:'חסכונות', color:'#10B981', isCrypto:false },
+      { id:'stocks',   label:'מניות',   color:'#34D399', isCrypto:false },
+      { id:'crypto',   label:'קריפטו',  color:'#6366F1', isCrypto:true  },
+      { id:'bank',     label:'חשבונות', color:'#F59E0B', isCrypto:false },
+    ];
+
+    // ─────────────────────────────────────────────────────
+    // APP
+    // ─────────────────────────────────────────────────────
+
+    function App() {
+      const [appState, setAppState] = useState(() => loadState());
+      const [customCurrencies, setCustomCurrencies] = useState(() => loadCustomCurrencies());
+      const [editMode,      setEditMode]      = useState(false);
+      const [draftHoldings, setDraftHoldings] = useState(null);
+      const [openCats,      setOpenCats]      = useState(new Set());
+      const [masked,        setMasked]        = useState(() => {
+        try { return localStorage.getItem('hahon-masked') === '1'; } catch { return false; }
+      });
+      const [accent,        setAccent]        = useState(() => {
+        try { return localStorage.getItem('hahon-accent') || '#10B981'; } catch { return '#10B981'; }
+      });
+      // Multi-currency display isn't wired to any UI yet — kept as a plain constant
+      // rather than fake state, since there's no selector to change it.
+      const currency = 'ILS';
+      const [showSettings,  setShowSettings]  = useState(false);
+      const [showHistory,   setShowHistory]   = useState(false);
+      const [showTable,     setShowTable]     = useState(false);
+      const [viewingIdx,    setViewingIdx]    = useState(null);
+      const [liveCryptoPrices, setLiveCryptoPrices] = useState({}); // ticker → ILS per unit
+      const [liveRatesAt,  setLiveRatesAt]    = useState(null);     // Date of last fetch
+      const [ratesFetching, setRatesFetching] = useState(false);
+      const [syncConfig,   setSyncConfig]     = useState(() => loadSyncConfig());
+      const [syncStatus,   setSyncStatus]     = useState('idle'); // idle|loading|saving|ok|error
+
+      useEffect(() => {
+        document.documentElement.style.setProperty('--accent', accent);
+        try { localStorage.setItem('hahon-accent', accent); } catch {}
+      }, [accent]);
+
+      useEffect(() => {
+        try { localStorage.setItem('hahon-masked', masked ? '1' : '0'); } catch {}
+      }, [masked]);
+
+      // ── Live rate fetching ───────────────────────────────
+      const fetchLiveRates = useCallback(async () => {
+        setRatesFetching(true);
+        // 1. Forex via Frankfurter (ECB-based, covers ILS→USD/EUR/HKD/THB + more)
+        try {
+          const r = await fetch('https://api.frankfurter.app/latest?base=ILS');
+          const d = await r.json();
+          if (d.rates) Object.entries(d.rates).forEach(([code, rate]) => { FX[code] = rate; });
+        } catch {}
+
+        // 2. Crypto via CoinGecko (no API key needed)
+        const tickers = [...new Set(
+          loadState().current.crypto.map(c => c.ticker).filter(Boolean)
+        )];
+        const ids = tickers.map(t => COINGECKO_IDS[t]).filter(Boolean).join(',');
+        if (ids) {
+          try {
+            const r = await fetch(
+              `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=ils`
+            );
+            const d = await r.json();
+            const prices = {};
+            tickers.forEach(t => {
+              const id = COINGECKO_IDS[t];
+              if (id && d[id]?.ils) prices[t] = d[id].ils;
+            });
+            setLiveCryptoPrices(prices);
+          } catch {}
+        }
+
+        setLiveRatesAt(new Date());
+        setRatesFetching(false);
+      }, []);
+
+      useEffect(() => { fetchLiveRates(); }, []);
+
+      // ── JSONBin: load on mount if configured ─────────────
+      useEffect(() => {
+        if (!syncConfig) return;
+        setSyncStatus('loading');
+        fetchFromJsonBin(syncConfig)
+          .then(data => {
+            if (data) {
+              // Version migration: clear snapshots if data is from an older version
+              const needsMigration = !data.version || data.version < DATA_VER;
+              if (needsMigration) {
+                data.snapshots = [];
+                data.version = DATA_VER;
+              }
+              if (data.current && Object.keys(data.current).length > 0) {
+                data.current = normalizeHoldings(data.current);
+                migrateHoldings(data.current);
+                (data.snapshots || []).forEach(s => {
+                  s.holdings = normalizeHoldings(s.holdings || {});
+                  migrateHoldings(s.holdings);
+                });
+                setAppState(data);
+                saveState(data);
+                // Re-save to JSONBin if we migrated
+                if (needsMigration) pushToJsonBin(syncConfig, data);
+              }
+            }
+            setSyncStatus('ok');
+          })
+          .catch(() => setSyncStatus('error'));
+      }, []); // only on mount
+
+      // Which holdings are displayed (current vs. historical snapshot)
+      const displayHoldings = useMemo(() => {
+        if (viewingIdx !== null && appState.snapshots[viewingIdx]) {
+          return appState.snapshots[viewingIdx].holdings;
+        }
+        return appState.current;
+      }, [appState, viewingIdx]);
+
+      // Live draft (for editing) or displayed holdings
+      const activeHoldings = editMode ? draftHoldings : displayHoldings;
+
+      const { catTotals, total: netWorth } = useMemo(
+        () => calcNetWorth(activeHoldings || displayHoldings, liveCryptoPrices),
+        [activeHoldings, displayHoldings, liveRatesAt, liveCryptoPrices]
+      );
+
+      // Previous period (last snapshot) — holdings, totals and per-item lookup
+      const prevHoldings = useMemo(() => {
+        const snaps = appState.snapshots;
+        if (viewingIdx !== null) {
+          return viewingIdx > 0 ? snaps[viewingIdx - 1].holdings : null;
+        }
+        return snaps.length > 0 ? snaps[snaps.length - 1].holdings : null;
+      }, [appState, viewingIdx]);
+
+      const prevCalc = useMemo(
+        () => prevHoldings ? calcNetWorth(prevHoldings) : null,
+        [prevHoldings]
+      );
+      const prevNetWorth  = prevCalc ? prevCalc.total : null;
+      const prevCatTotals = prevCalc ? prevCalc.catTotals : null;
+
+      // Per-item previous values, keyed by _rid (stable) with name fallback
+      const getPrevItemVal = useMemo(() => {
+        if (!prevHoldings) return () => null;
+        const map = {};
+        CAT_META.forEach(c => (prevHoldings[c.id] || []).forEach(it => {
+          const v = itemILS(c.id, it);
+          if (it._rid) map[`${c.id}|r|${it._rid}`] = v;
+          if (it.name) map[`${c.id}|n|${it.name}`] = v;
+        }));
+        return (catId, item) =>
+          map[`${catId}|r|${item._rid}`] ?? map[`${catId}|n|${item.name}`] ?? null;
+      }, [prevHoldings]);
+
+      const liquidTotal = (catTotals.savings || 0) + (catTotals.stocks || 0) + (catTotals.crypto || 0) + (catTotals.bank || 0);
+
+      const wow    = prevNetWorth != null ? netWorth - prevNetWorth : 0;
+      const wowPct = prevNetWorth > 0 ? (wow / prevNetWorth) * 100 : 0;
+      // Hide change if there's no history or it's unreasonably large (stale/corrupt snapshot)
+      const showWow = prevNetWorth > 0 && Math.abs(wowPct) < 30;
+
+      // ── Edit mode ────────────────────────────────────────
+      const startEdit = () => {
+        const draft = JSON.parse(JSON.stringify(appState.current));
+        // Add string-edit fields so inputs can hold intermediate strings (e.g. "" while typing)
+        // while the numeric `value`/`aftertax`/`marketValue` stay in sync for live totals.
+        Object.keys(draft).forEach(catId => {
+          draft[catId].forEach(item => {
+            item._touched = false; // red until the user types a new amount
+            if (catId === 'crypto') {
+              const liveMarket = liveCryptoPrices[item.ticker]
+                ? Math.round(liveCryptoPrices[item.ticker] * (item.qty || 0))
+                : (item.marketValue || 0);
+              item._editMarket  = String(liveMarket);
+              item._editQty     = String(item.qty    ?? 0);
+              item._editTicker  = item.ticker || '';
+            } else if (catId === 'bank') {
+              item._editForeignAmount = String(item.foreignAmount ?? item.value ?? 0);
+              item._editCurrency      = item.currency || 'ILS';
+            } else {
+              item._edit = String(item.value || 0);
+            }
+          });
+        });
+        setDraftHoldings(draft);
+        setEditMode(true);
+        setShowSettings(false);
+        setOpenCats(new Set(CAT_META.map(c => c.id)));
+      };
+
+      const cancelEdit = () => {
+        setEditMode(false);
+        setDraftHoldings(null);
+      };
+
+      const saveEdit = () => {
+        // Strip _edit fields and ensure numeric values are finalised from the strings
+        const clean = JSON.parse(JSON.stringify(draftHoldings));
+        Object.keys(clean).forEach(catId => {
+          clean[catId].forEach(item => {
+            if (catId === 'crypto') {
+              item.marketValue = parseFloat(String(item._editMarket  || '').replace(/,/g,'')) || 0;
+              item.qty         = parseFloat(String(item._editQty     || '').replace(/,/g,'')) || 0;
+              item.ticker      = (item._editTicker || '').trim().toUpperCase();
+              delete item._editMarket;
+              delete item._editQty;
+              delete item._editTicker;
+            } else if (catId === 'bank') {
+              item.foreignAmount = parseFloat(String(item._editForeignAmount || '').replace(/,/g,'')) || 0;
+              item.currency      = item._editCurrency || 'ILS';
+              delete item._editForeignAmount;
+              delete item._editCurrency;
+            } else {
+              item.value = parseFloat(String(item._edit || '').replace(/,/g,'')) || 0;
+              delete item._edit;
+            }
+            delete item._touched;
+          });
+        });
+
+        const newSnapshot = {
+          id: Date.now().toString(),
+          date: new Date().toISOString(),
+          label: new Date().toLocaleDateString('he-IL'),
+          holdings: JSON.parse(JSON.stringify(appState.current)), // old state → history
+        };
+        const newState = {
+          current: clean,
+          snapshots: [...appState.snapshots, newSnapshot],
+          version: DATA_VER, // without this, loadState wipes snapshots on next load
+        };
+        setAppState(newState);
+        saveState(newState);
+        setEditMode(false);
+        setDraftHoldings(null);
+        setViewingIdx(null);
+        if (syncConfig) {
+          setSyncStatus('saving');
+          pushToJsonBin(syncConfig, newState)
+            .then(() => setSyncStatus('ok'))
+            .catch(() => setSyncStatus('error'));
+        }
+      };
+
+      const deleteSnapshot = (idx) => {
+        if (!confirm(`למחוק את העדכון מ-${formatDate(appState.snapshots[idx].date)}?`)) return;
+        const newState = {
+          ...appState,
+          snapshots: appState.snapshots.filter((_, i) => i !== idx),
+          version: DATA_VER,
+        };
+        setAppState(newState);
+        saveState(newState);
+        setViewingIdx(null);
+        if (syncConfig) {
+          setSyncStatus('saving');
+          pushToJsonBin(syncConfig, newState)
+            .then(() => setSyncStatus('ok'))
+            .catch(() => setSyncStatus('error'));
+        }
+      };
+
+      const onValueChange = useCallback((catId, itemIdx, updates) => {
+        setDraftHoldings(prev => {
+          const next = JSON.parse(JSON.stringify(prev));
+          Object.assign(next[catId][itemIdx], updates);
+          return next;
+        });
+      }, []);
+
+      const onAddItem = useCallback((catId) => {
+        setDraftHoldings(prev => {
+          const next = JSON.parse(JSON.stringify(prev));
+          let newItem;
+          if (catId === 'crypto') {
+            newItem = { name: '', ticker: '', qty: 0, value: null, marketValue: 0,
+                        _editMarket: '0', _editQty: '0', _editTicker: '' };
+          } else if (catId === 'bank') {
+            newItem = { name: '', foreignAmount: 0, currency: 'ILS', note: '',
+                        _editForeignAmount: '0', _editCurrency: 'ILS' };
+          } else {
+            newItem = { name: '', value: 0, note: '', taxable: false, _edit: '0' };
+          }
+          newItem._rid = nextRid();
+          newItem._touched = true; // new item — the user is typing it right now
+          next[catId].push(newItem);
+          return next;
+        });
+      }, []);
+
+      const onDeleteItem = useCallback((catId, itemIdx) => {
+        setDraftHoldings(prev => {
+          const next = JSON.parse(JSON.stringify(prev));
+          next[catId].splice(itemIdx, 1);
+          return next;
+        });
+      }, []);
+
+      const onAddCurrency = useCallback((code, rate, sym) => {
+        FX[code]  = rate;
+        SYM[code] = sym || code;
+        const updated = { ...customCurrencies, [code]: { rate, sym: sym || code } };
+        setCustomCurrencies(updated);
+        try { localStorage.setItem(CUSTOM_CUR_KEY, JSON.stringify(updated)); } catch {}
+      }, [customCurrencies]);
+
+      // ── Sync callbacks ───────────────────────────────────
+      const onSyncConnect = useCallback(async (cfg) => {
+        const data = await fetchFromJsonBin(cfg);
+        if (data && data.current) {
+          migrateHoldings(data.current);
+          (data.snapshots || []).forEach(s => migrateHoldings(s.holdings));
+          setAppState(data);
+          saveState(data);
+        } else {
+          // Bin is empty — push current data up
+          await pushToJsonBin(cfg, appState);
+        }
+        saveSyncConfig(cfg);
+        setSyncConfig(cfg);
+        setSyncStatus('ok');
+      }, [appState]);
+
+      const onSyncDisconnect = useCallback(() => {
+        try { localStorage.removeItem(SYNC_CFG_KEY); } catch {}
+        setSyncConfig(null);
+        setSyncStatus('idle');
+      }, []);
+
+      const onResetHistory = useCallback(() => {
+        const newState = { current: appState.current, snapshots: [], version: DATA_VER };
+        setAppState(newState);
+        saveState(newState);
+        if (syncConfig) {
+          setSyncStatus('saving');
+          pushToJsonBin(syncConfig, newState)
+            .then(() => setSyncStatus('ok'))
+            .catch(() => setSyncStatus('error'));
+        }
+      }, [appState, syncConfig]);
+
+      const onSyncNow = useCallback(() => {
+        if (!syncConfig) return;
+        setSyncStatus('saving');
+        pushToJsonBin(syncConfig, appState)
+          .then(() => setSyncStatus('ok'))
+          .catch(() => setSyncStatus('error'));
+      }, [syncConfig, appState]);
+
+      const toggleCat = id => {
+        setOpenCats(prev => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id); else next.add(id);
+          return next;
+        });
+      };
+
+      const isViewing = viewingIdx !== null;
+      const viewingSnap = isViewing ? appState.snapshots[viewingIdx] : null;
+
+      return (
+        <div dir="rtl" style={{ minHeight:'100vh' }}>
+
+          {/* ── Edit banner ── */}
+          {editMode && (() => {
+            const allItems  = Object.values(draftHoldings || {}).flat();
+            const doneCount = allItems.filter(it => it._touched).length;
+            return (
+            <div className="edit-banner">
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <span style={{ fontSize:13, fontWeight:600, color:'#065F46' }}>✏ מצב עריכה</span>
+                <span style={{ fontSize:12, fontWeight:600, color: doneCount === allItems.length ? '#059669' : '#B45309',
+                               fontVariantNumeric:'tabular-nums' }}>
+                  עודכנו {doneCount} מתוך {allItems.length}
+                </span>
+                <span style={{ fontSize:12, color:'#059669' }}>שדות באדום — טרם עודכנו</span>
+              </div>
+              <div className="edit-banner-btns">
+                <button className="btn-cancel" onClick={cancelEdit}>ביטול</button>
+                <button className="btn-save" onClick={saveEdit}>שמור עדכון</button>
+              </div>
+            </div>
+            );
+          })()}
+
+          {/* ── Viewing history banner ── */}
+          {isViewing && !editMode && (
+            <div className="history-banner">
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ fontSize:13, fontWeight:600, color:'#92400E' }}>
+                  ⏱ מציג: {formatDate(viewingSnap.date)}
+                </span>
+              </div>
+              <button onClick={() => setViewingIdx(null)}
+                style={{ background:'#FDE68A', border:'1px solid #FCD34D', borderRadius:8,
+                         padding:'6px 14px', fontSize:12, fontWeight:600, color:'#92400E', cursor:'pointer' }}>
+                חזרה להיום
+              </button>
+            </div>
+          )}
+
+          <div className="page-pad">
+
+            {/* ── Top bar ── */}
+            <header className="anim-0" style={{ display:'flex', alignItems:'center',
+              justifyContent:'space-between', marginBottom:24 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{ width:34, height:34, borderRadius:10, background:'var(--hero)', color:accent,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow:'0 4px 10px -4px rgba(11,31,27,0.5)' }}>
+                  <Icon name="trend" size={17} />
+                </div>
+                <span className="app-title">ההון שלי</span>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <span style={{ fontSize:11, color:'var(--ink-3)' }}>
+                  {isViewing
+                    ? formatDate(viewingSnap.date)
+                    : appState.snapshots.length > 0
+                      ? `עודכן ${timeSinceLabel(appState.snapshots[appState.snapshots.length - 1].date)}`
+                      : ''}
+                </span>
+                <IconBtn onClick={() => { setShowTable(v=>!v); setShowHistory(false); setShowSettings(false); }}
+                  title="נכסים לאורך זמן" active={showTable}><Icon name="table" size={15} /></IconBtn>
+                <IconBtn onClick={() => { setShowHistory(v=>!v); setShowSettings(false); }}
+                  title="היסטוריה" active={showHistory}><Icon name="history" size={15} /></IconBtn>
+                <IconBtn onClick={() => {
+                    if (isViewing) { setViewingIdx(null); return; }
+                    if (editMode) { cancelEdit(); return; }
+                    startEdit();
+                  }}
+                  title={editMode ? 'ביטול עריכה' : 'עריכה'}
+                  active={editMode}><Icon name="pencil" size={14} /></IconBtn>
+                <Avatar name="יהונתן יעל" size={32} />
+              </div>
+            </header>
+
+            {/* ── Hero card ── */}
+            <section className="anim-1 hero-card">
+
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
+                <span style={{ width:6, height:6, borderRadius:999, background:accent,
+                               boxShadow:`0 0 10px ${accent}` }} />
+                <span style={{ fontSize:11, fontWeight:700, color:'rgba(244,251,248,0.55)',
+                               letterSpacing:'0.14em', textTransform:'uppercase' }}>סך הון עצמי</span>
+              </div>
+
+              <div className={`hero-number number-val${masked?' masked':''}`}>
+                {maskVal(fmt(netWorth, currency), masked)}
+              </div>
+
+              <div style={{ display:'flex', gap:12, alignItems:'center', marginTop:14 }}>
+                {showWow && <Pill color={wow >= 0 ? '#34D399' : '#F87171'}>{wow >= 0 ? '↑' : '↓'} {Math.abs(wowPct).toFixed(2)}%</Pill>}
+                <span style={{ fontSize:13, color:'rgba(244,251,248,0.65)' }}>
+                  {isViewing ? 'לעומת עדכון קודם' : (() => {
+                    const snaps = appState.snapshots;
+                    const label = snaps.length > 0
+                      ? timeSinceLabel(snaps[snaps.length - 1].date)
+                      : null;
+                    return label ? `עודכן ${label}` : '';
+                  })()}{' '}
+                  {showWow && <strong className={`number-val${masked?' masked':''}`}
+                    style={{ fontVariantNumeric:'tabular-nums', color:'#F4FBF8' }}>
+                    {maskVal(fmt(wow, currency, { compact:true, sign:true }), masked)}
+                  </strong>}
+                </span>
+              </div>
+
+              {/* Net-worth history chart */}
+              {!editMode && (
+                <NetWorthChart snapshots={appState.snapshots}
+                  currentTotal={calcNetWorth(appState.current, liveCryptoPrices).total}
+                  masked={masked} accent={accent} />
+              )}
+
+              {/* Pension + Liquid breakdown */}
+              <div className="hero-split" style={{ display:'flex', gap:0, marginTop:22, marginBottom:4,
+                            borderTop:'1px solid rgba(255,255,255,0.09)', paddingTop:18 }}>
+                {[
+                  { label:'פנסיה', val: catTotals.pension, note:'נעול עד פרישה' },
+                  { label:'נזיל',  val: liquidTotal,        note:'מניות · חסכונות · קריפטו · בנק' },
+                ].map((seg, i) => (
+                  <div key={seg.label} style={{
+                    flex:1, paddingRight: i===0 ? 28 : 0, paddingLeft: i===1 ? 0 : 28,
+                    borderRight: i===0 ? '1px solid rgba(255,255,255,0.09)' : 'none',
+                  }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:'rgba(244,251,248,0.5)',
+                                  letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>
+                      {seg.label}
+                    </div>
+                    <div className={`number-val${masked?' masked':''}`}
+                         style={{ fontSize:23, fontWeight:600, letterSpacing:'-0.02em',
+                                  fontFamily:'var(--serif)', color:'#FFFFFF',
+                                  direction:'ltr', textAlign:'right' }}>
+                      {maskVal(fmt(seg.val, currency), masked)}
+                    </div>
+                    <div style={{ fontSize:10, color:'rgba(244,251,248,0.45)', marginTop:3 }}>{seg.note}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Allocation strip */}
+              <AllocationBar catTotals={catTotals} masked={masked} />
+
+              {/* KPI cards */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(170px, 1fr))',
+                            gap:12, marginTop:26 }}>
+                {CAT_META.map(cat => (
+                  <KpiCard key={cat.id} cat={{ ...cat, items: activeHoldings[cat.id] }}
+                    catTotal={catTotals[cat.id]} prevTotal={prevCatTotals?.[cat.id]}
+                    masked={masked} currency={currency} />
+                ))}
+              </div>
+            </section>
+
+            {/* ── Holdings panel ── */}
+            <section className="anim-2 panel-card">
+
+              <div style={{ padding:'22px 26px 16px', display:'flex', justifyContent:'space-between',
+                alignItems:'center', borderBottom:'1px solid var(--border-2)' }}>
+                <div>
+                  <div style={{ fontSize:11, fontWeight:700, color:'var(--ink-3)',
+                                letterSpacing:'0.12em', textTransform:'uppercase' }}>החזקות</div>
+                  <div style={{ fontSize:11, color:'var(--ink-3)', marginTop:3, display:'flex', alignItems:'center', gap:6 }}>
+                    {CAT_META.reduce((s,c) => s + activeHoldings[c.id].length, 0)} פריטים
+                    {editMode && <span style={{ color:'#10B981', fontWeight:600 }}>· מצב עריכה</span>}
+                    {liveRatesAt && !editMode && (
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+                        <span style={{ width:5, height:5, borderRadius:'50%', background:'#10B981' }} />
+                        שערים חיים · {liveRatesAt.toLocaleTimeString('he-IL', { hour:'2-digit', minute:'2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:6 }}>
+                  {[['פתח הכל', () => setOpenCats(new Set(CAT_META.map(c=>c.id)))],
+                    ['סגור הכל', () => setOpenCats(new Set())]].map(([label, fn]) => (
+                    <button key={label} onClick={fn}
+                      style={{ fontSize:11, fontWeight:600, color:'var(--ink-2)',
+                        padding:'5px 12px', borderRadius:999,
+                        background:'var(--bg)', border:'1px solid var(--border)', cursor:'pointer' }}
+                      onMouseEnter={e => e.currentTarget.style.background='var(--border)'}
+                      onMouseLeave={e => e.currentTarget.style.background='var(--bg)'}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {CAT_META.map(cat => (
+                <CategoryAccordion
+                  key={cat.id} cat={cat}
+                  catTotal={catTotals[cat.id]}
+                  items={activeHoldings[cat.id]}
+                  isOpen={openCats.has(cat.id)}
+                  onToggle={() => toggleCat(cat.id)}
+                  editMode={editMode && !isViewing}
+                  onValueChange={onValueChange}
+                  onAddItem={onAddItem}
+                  onDeleteItem={onDeleteItem}
+                  masked={masked} currency={currency}
+                  isCrypto={cat.isCrypto}
+                  customCurrencies={customCurrencies}
+                  onAddCurrency={onAddCurrency}
+                  liveCryptoPrices={liveCryptoPrices}
+                  getPrevItemVal={editMode ? null : getPrevItemVal}
+                />
+              ))}
+
+              <div style={{ padding:'12px 26px 18px', borderTop:'1px solid var(--border-2)',
+                fontSize:11, color:'var(--ink-3)', lineHeight:1.6 }}>
+                * קריפטו מוצג בשווי שוק.
+              </div>
+            </section>
+          </div>
+
+          {/* ── Assets-over-time table ── */}
+          {showTable && (
+            <TableView appState={appState} liveCryptoPrices={liveCryptoPrices}
+              masked={masked} onClose={() => setShowTable(false)} />
+          )}
+
+          {/* ── History panel ── */}
+          {showHistory && (
+            <HistoryPanel
+              snapshots={appState.snapshots}
+              currentNetWorth={calcNetWorth(appState.current).total}
+              viewingIdx={viewingIdx}
+              onView={idx => { setViewingIdx(idx); setShowHistory(false); setEditMode(false); }}
+              onDelete={deleteSnapshot}
+              onClose={() => setShowHistory(false)}
+            />
+          )}
+
+          {/* ── Settings ── */}
+          {showSettings && (
+            <SettingsPanel masked={masked} onMaskToggle={() => setMasked(v=>!v)}
+              accent={accent} onAccentChange={setAccent}
+              onClose={() => setShowSettings(false)}
+              syncConfig={syncConfig} syncStatus={syncStatus}
+              onSyncConnect={onSyncConnect}
+              onSyncDisconnect={onSyncDisconnect}
+              onSyncNow={onSyncNow}
+              onResetHistory={onResetHistory} />
+          )}
+
+          {/* ── Settings trigger ── */}
+          {!showSettings && !editMode && (
+            <button onClick={() => { setShowSettings(true); setShowHistory(false); }}
+              title="הגדרות"
+              style={{ position:'fixed', bottom:20, right:20, width:42, height:42,
+                borderRadius:12, background:'var(--ink)', color:accent, border:'none',
+                display:'flex', alignItems:'center', justifyContent:'center', fontSize:18,
+                cursor:'pointer', zIndex:900,
+                boxShadow:'0 4px 16px rgba(0,0,0,0.2)',
+                transition:'transform 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.transform='scale(1.06)'}
+              onMouseLeave={e => e.currentTarget.style.transform='scale(1)'}>
+              <Icon name="gear" size={18} />
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
