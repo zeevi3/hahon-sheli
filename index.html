@@ -280,6 +280,9 @@
     .asset-table .row-cat .col-name { background: var(--surface-2); }
 
     @media (max-width: 640px) {
+      /* The KPI cards expand into a category breakdown on mobile,
+         so the separate holdings list is redundant outside edit mode */
+      .holdings-panel.view-only { display: none; }
       .table-panel { inset: 8px; border-radius: 14px; }
       .page-pad { padding: 14px 14px 40px; }
       .hero-card { padding: 22px 18px 20px; border-radius: 18px; }
@@ -809,13 +812,74 @@
       );
     }
 
-    // KPI card
-    function KpiCard({ cat, catTotal, prevTotal, masked, currency }) {
+    // Pension FV summary by person (shared by the accordion and the KPI card)
+    function PensionSummary({ items, masked }) {
+      const byPerson = {};
+      items.forEach(item => {
+        const p = item.person || '—';
+        if (!byPerson[p]) byPerson[p] = { current: 0, fv: 0 };
+        byPerson[p].current += item.value || 0;
+        byPerson[p].fv += pensionFV(item.value || 0, item) || 0;
+      });
+      const entries = Object.entries(byPerson);
       return (
-        <div className="kpi-card" style={{ borderTop:`3px solid ${cat.color}` }}>
+        <div style={{ margin:'10px 0 8px', padding:'14px 16px',
+          background:'var(--surface)', borderRadius:12,
+          border:'1px solid var(--border-2)' }}>
+          <div style={{ fontSize:10, fontWeight:700, color:'var(--ink-3)',
+            letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:10 }}>
+            סיכום · תשואה {(PENSION_RATE * 100).toFixed(2).replace(/\.?0+$/, '')}% שנתי עד גיל פרישה
+          </div>
+          {entries.map(([person, { current, fv }], i) => {
+            const koef       = PENSION_KOEF[person];
+            const retireAge  = RETIRE_AGES[person] || 67;
+            const monthly    = koef && fv ? Math.round(fv / koef) : null;
+            return (
+              <div key={person} style={{ display:'flex', justifyContent:'space-between',
+                alignItems:'center', padding:'9px 0',
+                borderBottom: i < entries.length - 1 ? '1px solid var(--border-2)' : 'none' }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--ink)' }}>{person}</div>
+                  <div style={{ fontSize:10, color:'var(--ink-3)', marginTop:2 }}>
+                    גיל פרישה {retireAge} · מקדם {koef}
+                  </div>
+                </div>
+                <div style={{ textAlign:'left', direction:'rtl' }}>
+                  <div className={`number-val${masked?' masked':''}`}
+                       style={{ fontSize:12, color:'var(--ink-2)', fontVariantNumeric:'tabular-nums' }}>
+                    היום: {maskVal(fmt(current), masked)}
+                  </div>
+                  <div className={`number-val${masked?' masked':''}`}
+                       style={{ fontSize:13, fontWeight:700, color:'var(--accent)',
+                                marginTop:3 }}>
+                    בגיל {retireAge}: {maskVal(fmtMil(fv), masked)}
+                  </div>
+                  {monthly && (
+                    <div className={`number-val${masked?' masked':''}`}
+                         style={{ fontSize:12, fontWeight:600, color:'var(--ink-2)',
+                                  fontVariantNumeric:'tabular-nums', marginTop:2 }}>
+                      קצבה: {maskVal(fmt(monthly), masked)}/חודש
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // KPI card — tapping it expands an inline breakdown of the category
+    function KpiCard({ cat, catTotal, prevTotal, masked, currency,
+                       open, onToggle, livePrices, getPrevItemVal, customCurrencies }) {
+      const items = cat.items || [];
+      return (
+        <div className="kpi-card" style={{ borderTop:`3px solid ${cat.color}`, cursor:'pointer' }}
+             onClick={onToggle}>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <span style={{ width:9, height:9, borderRadius:3, background:cat.color, flexShrink:0 }} />
             <span style={{ fontSize:12, fontWeight:600, color:'var(--ink-2)' }}>{cat.label}</span>
+            <span className={`chevron${open?' open':''}`} style={{ marginInlineStart:'auto' }}>›</span>
           </div>
           <div className={`number-val${masked?' masked':''}`}
                style={{ fontSize:20, fontWeight:700, letterSpacing:'-0.03em',
@@ -824,8 +888,21 @@
             {fmt(catTotal, currency)}
           </div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <span style={{ fontSize:11, color:'var(--ink-3)' }}>{(cat.items || []).length} פריטים</span>
+            <span style={{ fontSize:11, color:'var(--ink-3)' }}>{items.length} פריטים</span>
             <DeltaTag cur={catTotal} prev={prevTotal} masked={masked} size={10} />
+          </div>
+
+          {/* Inline category breakdown */}
+          <div className={`accordion-body${open?' open':''}`} onClick={e => e.stopPropagation()}>
+            <div style={{ borderTop:'1px solid var(--border-2)', paddingTop:2 }}>
+              {items.map((item, i) => (
+                <HoldingRow key={item._rid ?? i} item={item} catId={cat.id} itemIdx={i}
+                  editMode={false} masked={masked} currency={currency} isCrypto={cat.isCrypto}
+                  customCurrencies={customCurrencies}
+                  livePrices={livePrices} getPrevItemVal={getPrevItemVal} />
+              ))}
+              {cat.id === 'pension' && <PensionSummary items={items} masked={masked} />}
+            </div>
           </div>
         </div>
       );
@@ -1151,61 +1228,7 @@
               ))}
 
               {/* Pension FV summary by person */}
-              {cat.id === 'pension' && !editMode && (() => {
-                const byPerson = {};
-                items.forEach(item => {
-                  const p = item.person || '—';
-                  if (!byPerson[p]) byPerson[p] = { current: 0, fv: 0 };
-                  byPerson[p].current += item.value || 0;
-                  byPerson[p].fv += pensionFV(item.value || 0, item) || 0;
-                });
-                const entries = Object.entries(byPerson);
-                return (
-                  <div style={{ margin:'10px 0 8px', padding:'14px 16px',
-                    background:'var(--surface)', borderRadius:12,
-                    border:'1px solid var(--border-2)' }}>
-                    <div style={{ fontSize:10, fontWeight:700, color:'var(--ink-3)',
-                      letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:10 }}>
-                      סיכום · תשואה {(PENSION_RATE * 100).toFixed(2).replace(/\.?0+$/, '')}% שנתי עד גיל פרישה
-                    </div>
-                    {entries.map(([person, { current, fv }], i) => {
-                      const koef       = PENSION_KOEF[person];
-                      const retireAge  = RETIRE_AGES[person] || 67;
-                      const monthly    = koef && fv ? Math.round(fv / koef) : null;
-                      return (
-                        <div key={person} style={{ display:'flex', justifyContent:'space-between',
-                          alignItems:'center', padding:'9px 0',
-                          borderBottom: i < entries.length - 1 ? '1px solid var(--border-2)' : 'none' }}>
-                          <div>
-                            <div style={{ fontSize:13, fontWeight:600, color:'var(--ink)' }}>{person}</div>
-                            <div style={{ fontSize:10, color:'var(--ink-3)', marginTop:2 }}>
-                              גיל פרישה {retireAge} · מקדם {koef}
-                            </div>
-                          </div>
-                          <div style={{ textAlign:'left', direction:'rtl' }}>
-                            <div className={`number-val${masked?' masked':''}`}
-                                 style={{ fontSize:12, color:'var(--ink-2)', fontVariantNumeric:'tabular-nums' }}>
-                              היום: {maskVal(fmt(current), masked)}
-                            </div>
-                            <div className={`number-val${masked?' masked':''}`}
-                                 style={{ fontSize:13, fontWeight:700, color:'var(--accent)',
-                                          marginTop:3 }}>
-                              בגיל {retireAge}: {maskVal(fmtMil(fv), masked)}
-                            </div>
-                            {monthly && (
-                              <div className={`number-val${masked?' masked':''}`}
-                                   style={{ fontSize:12, fontWeight:600, color:'var(--ink-2)',
-                                            fontVariantNumeric:'tabular-nums', marginTop:2 }}>
-                                קצבה: {maskVal(fmt(monthly), masked)}/חודש
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
+              {cat.id === 'pension' && !editMode && <PensionSummary items={items} masked={masked} />}
 
               {editMode && (
                 <button onClick={() => onAddItem(cat.id)}
@@ -1722,6 +1745,7 @@
       const [appState, setAppState] = useState(() => loadState());
       const [lockCfg, setLockCfg]   = useState(() => loadLock());
       const [locked, setLocked]     = useState(() => !!loadLock());
+      const [openKpi, setOpenKpi]   = useState(null); // expanded KPI card (category id)
       const [customCurrencies, setCustomCurrencies] = useState(() => loadCustomCurrencies());
       const [editMode,      setEditMode]      = useState(false);
       const [draftHoldings, setDraftHoldings] = useState(null);
@@ -2276,19 +2300,24 @@
               {/* Allocation strip */}
               <AllocationBar catTotals={catTotals} masked={masked} />
 
-              {/* KPI cards */}
+              {/* KPI cards — expandable per-category breakdown */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(170px, 1fr))',
-                            gap:12, marginTop:26 }}>
+                            gap:12, marginTop:26, alignItems:'start' }}>
                 {CAT_META.map(cat => (
                   <KpiCard key={cat.id} cat={{ ...cat, items: activeHoldings[cat.id] }}
                     catTotal={catTotals[cat.id]} prevTotal={prevCatTotals?.[cat.id]}
-                    masked={masked} currency={currency} />
+                    masked={masked} currency={currency}
+                    open={openKpi === cat.id}
+                    onToggle={() => setOpenKpi(v => v === cat.id ? null : cat.id)}
+                    livePrices={livePrices}
+                    getPrevItemVal={editMode ? null : getPrevItemVal}
+                    customCurrencies={customCurrencies} />
                 ))}
               </div>
             </section>
 
-            {/* ── Holdings panel ── */}
-            <section className="anim-2 panel-card">
+            {/* ── Holdings panel (on mobile it's hidden in view mode — the KPI cards expand instead) ── */}
+            <section className={`anim-2 panel-card holdings-panel${editMode ? '' : ' view-only'}`}>
 
               <div style={{ padding:'22px 26px 16px', display:'flex', justifyContent:'space-between',
                 alignItems:'center', borderBottom:'1px solid var(--border-2)' }}>
