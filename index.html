@@ -572,6 +572,56 @@
       if (!r.ok) throw new Error(r.status);
     }
 
+    // ─────────────────────────────────────────────────────
+    // APP LOCK (PIN + biometric via WebAuthn)
+    // Note: this is a per-device UI gate — it hides the app behind
+    // fingerprint/PIN but does not encrypt the stored data.
+    // ─────────────────────────────────────────────────────
+
+    const LOCK_KEY = 'hahon-lock'; // { pinHash, salt, credId? }
+
+    function loadLock() {
+      try { return JSON.parse(localStorage.getItem(LOCK_KEY)) || null; } catch { return null; }
+    }
+    function saveLock(cfg) {
+      try {
+        if (cfg) localStorage.setItem(LOCK_KEY, JSON.stringify(cfg));
+        else localStorage.removeItem(LOCK_KEY);
+      } catch {}
+    }
+
+    async function hashPin(pin, salt) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + pin));
+      return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    const randHex = n => [...crypto.getRandomValues(new Uint8Array(n))].map(b => b.toString(16).padStart(2, '0')).join('');
+    const bufToB64 = a => btoa(String.fromCharCode(...new Uint8Array(a)));
+    const b64ToBuf = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+    // Register the device's fingerprint/face as a platform credential
+    async function registerBiometric() {
+      const cred = await navigator.credentials.create({ publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: 'ההון שלי' },
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'hahon-user', displayName: 'ההון שלי' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 60000,
+      }});
+      return bufToB64(cred.rawId);
+    }
+
+    // Prompt for fingerprint/face; throws if cancelled or failed
+    async function verifyBiometric(credId) {
+      await navigator.credentials.get({ publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ type: 'public-key', id: b64ToBuf(credId), transports: ['internal'] }],
+        userVerification: 'required',
+        timeout: 60000,
+      }});
+      return true;
+    }
+
     // Create a new private bin with the given data; returns its Bin ID
     async function createJsonBin(apiKey, data) {
       const r = await fetch(JSONBIN_BASE, {
@@ -1379,10 +1429,78 @@
       );
     }
 
+    // Full-screen lock gate shown until fingerprint/PIN succeeds
+    function LockScreen({ lock, onUnlock }) {
+      const [pin, setPin]   = useState('');
+      const [err, setErr]   = useState(null);
+      const [busy, setBusy] = useState(false);
+      const triedRef = useRef(false);
+
+      const tryBio = async () => {
+        if (!lock.credId) return;
+        setBusy(true); setErr(null);
+        try { await verifyBiometric(lock.credId); onUnlock(); }
+        catch { setErr('הזיהוי הביומטרי בוטל או נכשל — אפשר להזין קוד'); }
+        setBusy(false);
+      };
+
+      // Auto-prompt biometric once on open
+      useEffect(() => {
+        if (lock.credId && !triedRef.current) { triedRef.current = true; tryBio(); }
+      }, []);
+
+      const tryPin = async () => {
+        if (!pin) return;
+        const h = await hashPin(pin, lock.salt);
+        if (h === lock.pinHash) onUnlock();
+        else { setErr('קוד שגוי'); setPin(''); }
+      };
+
+      return (
+        <div style={{ position:'fixed', inset:0, zIndex:10000,
+          background:'linear-gradient(160deg, var(--hero) 0%, var(--hero-2) 100%)',
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+          gap:18, padding:24 }}>
+          <div style={{ width:64, height:64, borderRadius:20, background:'rgba(16,185,129,0.15)',
+            display:'flex', alignItems:'center', justifyContent:'center', fontSize:28 }}>🔒</div>
+          <div style={{ color:'#F4FBF8', fontSize:20, fontWeight:700, fontFamily:'var(--serif)' }}>
+            ההון שלי נעול
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:280 }}>
+            {lock.credId && (
+              <button onClick={tryBio} disabled={busy}
+                style={{ fontFamily:'inherit', fontSize:14, fontWeight:600, padding:'12px 16px',
+                  borderRadius:12, border:'none', background:'var(--accent)', color:'white',
+                  cursor:'pointer', opacity: busy ? 0.7 : 1 }}>
+                {busy ? 'מזהה…' : '🫆 פתיחה עם טביעת אצבע'}
+              </button>
+            )}
+            <input type="password" inputMode="numeric" placeholder="קוד גישה" autoFocus={!lock.credId}
+              value={pin}
+              onChange={e => setPin(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && tryPin()}
+              style={{ fontFamily:'inherit', fontSize:16, padding:'11px 14px', borderRadius:12,
+                border:'1px solid rgba(244,251,248,0.25)', background:'rgba(244,251,248,0.08)',
+                color:'#F4FBF8', outline:'none', textAlign:'center', direction:'ltr',
+                letterSpacing:'0.2em' }} />
+            <button onClick={tryPin}
+              style={{ fontFamily:'inherit', fontSize:13, fontWeight:600, padding:'10px 16px',
+                borderRadius:12, border:'1px solid rgba(244,251,248,0.3)',
+                background:'transparent', color:'#F4FBF8', cursor:'pointer' }}>
+              כניסה
+            </button>
+            {err && <div style={{ color:'#FCA5A5', fontSize:12, textAlign:'center' }}>{err}</div>}
+          </div>
+        </div>
+      );
+    }
+
     // Settings
     function SettingsPanel({ masked, onMaskToggle, accent, onAccentChange, onClose,
                              syncConfig, syncStatus, onSyncConnect, onSyncDisconnect, onSyncNow,
-                             onResetHistory }) {
+                             onResetHistory, lock, onSetPin, onEnableBio, onDisableLock }) {
+      const [lockPin, setLockPin] = useState('');
+      const [lockErr, setLockErr] = useState(null);
       const accents = [
         { value:'#10B981', label:'מנטה' }, { value:'#0F766E', label:'טיל' },
         { value:'#6366F1', label:'אינדיגו' }, { value:'#F59E0B', label:'זהב' },
@@ -1522,6 +1640,64 @@
               </div>
             )}
           </div>
+
+          {/* ── App lock ── */}
+          <div style={{ borderTop:'1px solid var(--border)', paddingTop:14, marginTop:14 }}>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.07em', color:'var(--ink-3)',
+                          textTransform:'uppercase', marginBottom:10 }}>
+              נעילת כניסה
+            </div>
+            {lock ? (
+              <div>
+                <div style={{ fontSize:11, color:'var(--ink-2)', marginBottom:8 }}>
+                  נעילה פעילה במכשיר הזה
+                  {lock.credId && <span style={{ color:'var(--accent)', marginRight:6 }}>· ביומטרי מופעל</span>}
+                </div>
+                <div style={{ display:'flex', gap:6 }}>
+                  {!lock.credId && (
+                    <button onClick={async () => {
+                        setLockErr(null);
+                        try { await onEnableBio(); }
+                        catch { setLockErr('הפעלת ביומטרי נכשלה — ודא שיש טביעת אצבע במכשיר'); }
+                      }}
+                      style={{ flex:1, fontFamily:'inherit', fontSize:11, fontWeight:600,
+                        padding:'6px 10px', borderRadius:7, border:'1.5px solid var(--accent)',
+                        background:'transparent', color:'var(--accent)', cursor:'pointer' }}>
+                      הפעל טביעת אצבע
+                    </button>
+                  )}
+                  <button onClick={onDisableLock}
+                    style={{ fontFamily:'inherit', fontSize:11, padding:'6px 10px', borderRadius:7,
+                      border:'1px solid var(--border)', background:'white', color:'var(--ink-3)', cursor:'pointer' }}>
+                    בטל נעילה
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                <input type="password" inputMode="numeric" placeholder="בחר קוד גישה (4+ תווים)"
+                  value={lockPin}
+                  onChange={e => setLockPin(e.target.value)}
+                  style={{ fontFamily:'inherit', fontSize:11, padding:'6px 8px', borderRadius:7,
+                    border:'1px solid var(--border)', outline:'none', direction:'ltr' }} />
+                <button onClick={async () => {
+                    if (lockPin.trim().length < 4) { setLockErr('קוד קצר מדי — לפחות 4 תווים'); return; }
+                    setLockErr(null);
+                    await onSetPin(lockPin.trim());
+                    setLockPin('');
+                  }}
+                  style={{ fontFamily:'inherit', fontSize:12, fontWeight:600,
+                    padding:'7px 12px', borderRadius:7, border:'none',
+                    background:'var(--accent)', color:'white', cursor:'pointer' }}>
+                  הפעל נעילה
+                </button>
+                <div style={{ fontSize:10, color:'var(--ink-3)', lineHeight:1.5 }}>
+                  אחרי הגדרת קוד תוכל להפעיל גם טביעת אצבע. הנעילה נפרדת לכל מכשיר.
+                </div>
+              </div>
+            )}
+            {lockErr && <div style={{ fontSize:10, color:'#EF4444', marginTop:6 }}>{lockErr}</div>}
+          </div>
         </div>
       );
     }
@@ -1544,6 +1720,8 @@
 
     function App() {
       const [appState, setAppState] = useState(() => loadState());
+      const [lockCfg, setLockCfg]   = useState(() => loadLock());
+      const [locked, setLocked]     = useState(() => !!loadLock());
       const [customCurrencies, setCustomCurrencies] = useState(() => loadCustomCurrencies());
       const [editMode,      setEditMode]      = useState(false);
       const [draftHoldings, setDraftHoldings] = useState(null);
@@ -1896,6 +2074,28 @@
         setSyncStatus('idle');
       }, []);
 
+      // ── App lock handlers ─────────────────────────────
+      const onSetPin = useCallback(async (pin) => {
+        const salt = randHex(8);
+        const pinHash = await hashPin(pin, salt);
+        const cfg = { ...(lockCfg || {}), salt, pinHash };
+        saveLock(cfg);
+        setLockCfg(cfg);
+      }, [lockCfg]);
+
+      const onEnableBio = useCallback(async () => {
+        const credId = await registerBiometric();
+        const cfg = { ...(lockCfg || {}), credId };
+        saveLock(cfg);
+        setLockCfg(cfg);
+      }, [lockCfg]);
+
+      const onDisableLock = useCallback(() => {
+        saveLock(null);
+        setLockCfg(null);
+        setLocked(false);
+      }, []);
+
       const onResetHistory = useCallback(() => {
         const newState = { current: appState.current, snapshots: [], version: DATA_VER };
         setAppState(newState);
@@ -1929,6 +2129,11 @@
 
       return (
         <div dir="rtl" style={{ minHeight:'100vh' }}>
+
+          {/* ── Lock gate ── */}
+          {locked && lockCfg && (
+            <LockScreen lock={lockCfg} onUnlock={() => setLocked(false)} />
+          )}
 
           {/* ── Edit banner ── */}
           {editMode && (() => {
@@ -2170,7 +2375,9 @@
               onSyncConnect={onSyncConnect}
               onSyncDisconnect={onSyncDisconnect}
               onSyncNow={onSyncNow}
-              onResetHistory={onResetHistory} />
+              onResetHistory={onResetHistory}
+              lock={lockCfg} onSetPin={onSetPin}
+              onEnableBio={onEnableBio} onDisableLock={onDisableLock} />
           )}
 
           {/* ── Settings trigger ── */}
