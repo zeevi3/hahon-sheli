@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ההון שלי — הדמיית עיצוב 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&family=Frank+Ruhl+Libre:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #EEF2EF; --surface: #FFFFFF; --surface-2: #F6F8F7; --line: rgba(11,31,27,0.08);
+    --ink: #0B1F1B; --ink-2: #3D504A; --ink-3: #64766F;
+    --accent: #10B981; --accent-ink: #047857; --down: #D9534F;
+    --hero-a: #0A1C18; --hero-b: #0F3A30;
+    --c-pension: #0F766E; --c-savings: #10B981; --c-stocks: #5DCAA5; --c-crypto: #7F77DD; --c-bank: #E8A33D;
+    --shadow: 0 1px 2px rgba(11,31,27,.04), 0 12px 32px -16px rgba(11,31,27,.18);
+    --r-xl: 28px; --r-lg: 22px; --r-md: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #070F0D; --surface: #0E1A17; --surface-2: #13221E; --line: rgba(255,255,255,0.07);
+      --ink: #E9F2EE; --ink-2: #B6C6BF; --ink-3: #8DA199; --accent-ink: #34D399; --down: #F07C78;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 16px 40px -20px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #070F0D; --surface: #0E1A17; --surface-2: #13221E; --line: rgba(255,255,255,0.07);
+    --ink: #E9F2EE; --ink-2: #B6C6BF; --ink-3: #8DA199; --accent-ink: #34D399; --down: #F07C78;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 16px 40px -20px rgba(0,0,0,.6);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', system-ui, sans-serif; background: var(--bg); color: var(--ink);
+         -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  .num { font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 22px 24px 120px; }
+
+  /* top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+  .logo { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center;
+          background: linear-gradient(145deg, #12453A, #0A1C18); color: #34D399; }
+  .seg { display: flex; padding: 4px; border-radius: 999px; background: var(--surface);
+         box-shadow: var(--shadow); border: 1px solid var(--line); }
+  .seg span { padding: 8px 18px; border-radius: 999px; font-size: 14px; font-weight: 500; color: var(--ink-3); }
+  .seg .on { background: var(--ink); color: var(--surface); }
+  .actions { display: flex; gap: 8px; }
+  .icon-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+              background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); box-shadow: var(--shadow); }
+  .cta { display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 40px; border-radius: 12px;
+         background: var(--accent); color: #032B20; font-weight: 600; font-size: 14px; border: none; }
+
+  /* bento */
+  .bento { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 14px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+          box-shadow: var(--shadow); padding: 18px 20px; position: relative; overflow: hidden; }
+  .label { font-size: 13px; color: var(--ink-3); font-weight: 500; }
+
+  /* hero */
+  .hero { grid-column: span 8; border-radius: var(--r-xl); padding: 26px 28px 18px; color: #F2FAF6; border: none;
+          background:
+            radial-gradient(520px 260px at 88% -10%, rgba(52,211,153,.30), transparent 60%),
+            radial-gradient(420px 220px at 0% 120%, rgba(127,119,221,.22), transparent 60%),
+            linear-gradient(160deg, var(--hero-b), var(--hero-a) 62%);
+          box-shadow: 0 30px 60px -30px rgba(10,28,24,.65); }
+  .hero .label { color: rgba(242,250,246,.62); }
+  .hero-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .big { font-family: 'Frank Ruhl Libre', serif; font-weight: 500; font-size: clamp(42px, 6vw, 68px);
+         line-height: 1; letter-spacing: -0.02em; margin: 10px 0 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+          font-size: 13px; font-weight: 600; background: rgba(52,211,153,.16); color: #6EE7B7; }
+  .hero-sub { display: flex; gap: 22px; font-size: 13px; color: rgba(242,250,246,.7); }
+  .hero-sub b { display: block; font-size: 17px; color: #fff; font-weight: 600; margin-top: 2px; }
+  .spark-hero { width: 100%; height: 96px; margin-top: 14px; display: block; }
+  .range { display: flex; gap: 6px; margin-top: 6px; }
+  .range span { font-size: 12px; padding: 4px 10px; border-radius: 999px; color: rgba(242,250,246,.6); }
+  .range .on { background: rgba(255,255,255,.1); color: #fff; }
+
+  /* allocation ring */
+  .alloc { grid-column: span 4; display: flex; flex-direction: column; }
+  .ring-wrap { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
+  .legend { display: grid; gap: 7px; font-size: 13px; flex: 1; }
+  .legend div { display: flex; justify-content: space-between; gap: 8px; color: var(--ink-2); }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-left: 7px; vertical-align: 0; }
+
+  /* category tiles */
+  .cat { grid-column: span 4; display: flex; flex-direction: column; gap: 6px; min-height: 150px; }
+  .cat-head { display: flex; align-items: center; justify-content: space-between; }
+  .cat-name { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 15px; }
+  .bar { width: 4px; height: 22px; border-radius: 4px; }
+  .cat-val { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin-top: 6px; }
+  .delta { font-size: 13px; font-weight: 600; }
+  .up { color: var(--accent-ink); } .down { color: var(--down); }
+  .meta { font-size: 12px; color: var(--ink-3); }
+  .spark { position: absolute; left: 0; right: 0; bottom: 0; height: 46px; width: 100%; opacity: .9; }
+
+  /* pension tile, wide */
+  .pension { grid-column: span 8; }
+  .rows { margin-top: 8px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0;
+         border-top: 1px solid var(--line); }
+  .row:first-child { border-top: none; }
+  .row-name { font-size: 14px; font-weight: 500; }
+  .row-note { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2);
+         color: var(--ink-2); margin-inline-start: 6px; border: 1px solid var(--line); }
+  .proj { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-top: 12px; }
+  .proj div { background: var(--surface-2); border-radius: var(--r-md); padding: 12px 14px; }
+  .proj b { display: block; font-size: 18px; margin-top: 3px; }
+
+  /* returns teaser */
+  .returns { grid-column: span 4; background: linear-gradient(160deg, #F1FBF6, var(--surface) 70%); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .returns { background: linear-gradient(160deg, #0F2A22, var(--surface) 70%); } }
+  .ret-big { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin: 8px 0 2px; color: var(--accent-ink); }
+  .ret-line { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); padding: 7px 0;
+              border-top: 1px solid var(--line); }
+  .link { margin-top: auto; font-size: 13px; font-weight: 600; color: var(--accent-ink); padding-top: 10px; }
+
+  /* floating mobile nav */
+  .dock { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); display: none;
+          gap: 4px; padding: 6px; border-radius: 999px; background: rgba(11,31,27,.88); backdrop-filter: blur(14px);
+          box-shadow: 0 16px 40px -12px rgba(0,0,0,.5); }
+  .dock span { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 16px; border-radius: 999px;
+               color: rgba(255,255,255,.6); font-size: 11px; }
+  .dock .on { background: rgba(255,255,255,.12); color: #fff; }
+
+  .cat[data-cat] { cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
+  .cat[data-cat]:hover { transform: translateY(-2px); }
+  .scrim { position: fixed; inset: 0; background: rgba(5,14,12,.45); backdrop-filter: blur(3px);
+           opacity: 0; pointer-events: none; transition: opacity .25s ease; z-index: 50; }
+  .sheet { position: fixed; z-index: 51; left: 50%; bottom: 24px; width: min(560px, calc(100% - 32px));
+           max-height: 82vh; overflow: auto; background: var(--surface); border-radius: var(--r-xl);
+           padding: 14px 22px 22px; box-shadow: 0 40px 80px -24px rgba(0,0,0,.45);
+           transform: translate(-50%, 24px); opacity: 0; pointer-events: none;
+           transition: transform .3s cubic-bezier(.22,1,.36,1), opacity .25s ease; }
+  .open .scrim { opacity: 1; pointer-events: auto; }
+  .open .sheet { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+  .grab { width: 40px; height: 4px; border-radius: 4px; background: var(--line); margin: 0 auto 12px; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; }
+  .more { font-size: 12px; color: var(--ink-3); padding-top: 10px; border-top: 1px solid var(--line); }
+
+  @media (max-width: 860px) {
+    .hero, .alloc, .pension, .returns { grid-column: span 12; }
+    .cat { grid-column: span 6; }
+  }
+  @media (max-width: 560px) {
+    .wrap { padding: 16px 16px 110px; }
+    .seg, .cta span { display: none; }
+    .cat { grid-column: span 12; min-height: 128px; }
+    .hero { padding: 22px 20px 14px; }
+    .dock { display: flex; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand"><div class="logo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>
+    </div>ההון שלי</div>
+    <nav class="seg"><span class="on">ההון שלי</span><span>תשואות</span></nav>
+    <div class="actions">
+      <button class="cta"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>עדכון חודשי</span></button>
+      <div class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></div>
+    </div>
+  </header>
+
+  <main class="bento">
+
+    <section class="tile hero">
+      <div class="label">סך הון עצמי · עודכן אתמול</div>
+      <div class="hero-row">
+        <div>
+          <div class="big num">₪6,227,319</div>
+          <span class="chip"><span class="num">▲ 2.0%</span><span class="num">+₪123.7K</span>מהעדכון הקודם</span>
+        </div>
+        <div class="hero-sub">
+          <div>פנסיה · נעול<b class="num">₪2.66M</b></div>
+          <div>נזיל<b class="num">₪3.56M</b></div>
+        </div>
+      </div>
+      <svg class="spark-hero" viewBox="0 0 600 96" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="hg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34D399" stop-opacity=".38"/><stop offset="1" stop-color="#34D399" stop-opacity="0"/></linearGradient></defs>
+        <path d="M0,80 C60,76 90,70 140,72 S220,58 270,60 S350,44 400,46 S480,30 520,26 S580,16 600,12 L600,96 L0,96 Z" fill="url(#hg)"/>
+        <path d="M0,80 C60,76 90,70 140,72 S220,58 270,60 S350,44 400,46 S480,30 520,26 S580,16 600,12" fill="none" stroke="#34D399" stroke-width="2.6" vector-effect="non-scaling-stroke"/>
+        <circle cx="600" cy="12" r="4.5" fill="#34D399" stroke="#0A1C18" stroke-width="2"/>
+      </svg>
+      <div class="range"><span>3ח׳</span><span>6ח׳</span><span class="on">שנה</span><span>הכל</span></div>
+    </section>
+
+    <section class="tile alloc">
+      <div class="label">חלוקה</div>
+      <div class="ring-wrap">
+        <svg width="118" height="118" viewBox="0 0 42 42" aria-hidden="true" style="transform:rotate(-90deg)">
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--surface-2)" stroke-width="5.5"/>
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--c-pension)" stroke-width="5.5" stroke-dasharray="42.8 57.2" stroke-dashoffset="0"/>
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--c-savings)" stroke-width="5.5" stroke-dasharray="25.2 74.8" stroke-dashoffset="-42.8"/>
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--c-stocks)" stroke-width="5.5" stroke-dasharray="18 82" stroke-dashoffset="-68"/>
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--c-crypto)" stroke-width="5.5" stroke-dasharray="8.2 91.8" stroke-dashoffset="-86"/>
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--c-bank)" stroke-width="5.5" stroke-dasharray="5.8 94.2" stroke-dashoffset="-94.2"/>
+        </svg>
+        <div class="legend">
+          <div><span><i class="dot" style="background:var(--c-pension)"></i>פנסיה</span><span class="num">42.8%</span></div>
+          <div><span><i class="dot" style="background:var(--c-savings)"></i>חסכונות</span><span class="num">25.2%</span></div>
+          <div><span><i class="dot" style="background:var(--c-stocks)"></i>מניות</span><span class="num">18.0%</span></div>
+          <div><span><i class="dot" style="background:var(--c-crypto)"></i>קריפטו</span><span class="num">8.2%</span></div>
+          <div><span><i class="dot" style="background:var(--c-bank)"></i>חשבונות</span><span class="num">5.9%</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tile cat" data-cat="pension">
+      <div class="cat-head"><div class="cat-name"><span class="bar" style="background:var(--c-pension)"></span>פנסיה</div><span class="meta">4 · נעול</span></div>
+      <div class="cat-val num">₪2,662,825</div>
+      <div class="delta up num">+₪31.2K · +1.2%</div>
+      <svg class="spark" viewBox="0 0 300 46" preserveAspectRatio="none" aria-hidden="true"><path d="M0,38 C60,36 100,32 150,28 S230,20 300,14" fill="none" stroke="var(--c-pension)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+    </section>
+    <section class="tile cat" data-cat="savings">
+      <div class="cat-head"><div class="cat-name"><span class="bar" style="background:var(--c-savings)"></span>חסכונות</div><span class="meta">9 פריטים</span></div>
+      <div class="cat-val num">₪1,569,001</div>
+      <div class="delta up num">+₪48.2K · +3.2%</div>
+      <svg class="spark" viewBox="0 0 300 46" preserveAspectRatio="none" aria-hidden="true"><path d="M0,40 C50,38 80,34 120,30 S200,22 240,16 S280,10 300,8" fill="none" stroke="var(--c-savings)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+    </section>
+    <section class="tile cat" data-cat="stocks">
+      <div class="cat-head"><div class="cat-name"><span class="bar" style="background:var(--c-stocks)"></span>מניות</div><span class="meta">12 פריטים</span></div>
+      <div class="cat-val num">₪1,120,178</div>
+      <div class="delta down num">−₪6.4K · −0.6%</div>
+      <svg class="spark" viewBox="0 0 300 46" preserveAspectRatio="none" aria-hidden="true"><path d="M0,30 C40,26 70,20 110,24 S170,14 210,18 S270,22 300,24" fill="none" stroke="var(--c-stocks)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+    </section>
+    <section class="tile cat" data-cat="crypto">
+      <div class="cat-head"><div class="cat-name"><span class="bar" style="background:var(--c-crypto)"></span>קריפטו</div><span class="meta">4 · שער חי</span></div>
+      <div class="cat-val num">₪508,144</div>
+      <div class="delta up num">+₪124.5K · +32.4%</div>
+      <svg class="spark" viewBox="0 0 300 46" preserveAspectRatio="none" aria-hidden="true"><path d="M0,42 C40,40 70,36 110,38 S170,26 210,20 S270,8 300,6" fill="none" stroke="var(--c-crypto)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+    </section>
+
+    <section class="tile cat" data-cat="bank">
+      <div class="cat-head"><div class="cat-name"><span class="bar" style="background:var(--c-bank)"></span>חשבונות</div><span class="meta">4 · 3 דולריים</span></div>
+      <div class="cat-val num">₪367,633</div>
+      <div class="meta num">$22,809 · שער ₪3.08 (חי)</div>
+    </section>
+
+    <section class="tile returns" style="display:flex;flex-direction:column">
+      <div class="label">תשואות · 2025</div>
+      <div class="ret-big num">+₪298,043</div>
+      <div class="meta">XIRR 16.8% · אחרי הפקדות</div>
+      <div style="margin-top:10px">
+        <div class="ret-line"><span>ילין השתלמות</span><span class="num up">+₪116.5K</span></div>
+        <div class="ret-line"><span>מגדל השתלמות</span><span class="num up">+₪85.6K</span></div>
+        <div class="ret-line"><span>דיסקונט ני״ע</span><span class="num up">+₪77.3K</span></div>
+      </div>
+      <div class="link">לכל התשואות ←</div>
+    </section>
+
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true">
+  <div class="grab"></div>
+  <div class="sheet-head">
+    <div class="cat-name" id="sh-name"></div>
+    <button class="icon-btn" id="sh-close" aria-label="סגירה" style="width:34px;height:34px;box-shadow:none">✕</button>
+  </div>
+  <div class="cat-val num" id="sh-total" style="margin:2px 0 4px"></div>
+  <div class="rows" id="sh-rows"></div>
+  <div id="sh-extra"></div>
+</div>
+
+<nav class="dock">
+  <span class="on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 4l9 6.5V20H3z"/></svg>הון</span>
+  <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>תשואות</span>
+  <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>עדכון</span>
+  <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>היסטוריה</span>
+</nav>
+<script>
+  const CATS = {
+    pension: { name: 'פנסיה', color: 'var(--c-pension)', total: '₪2,662,825', items: [
+      ['מנורה מבטחים פנסיה מקיפה', 'הפקדה 2.09% · צבירה 0%', 'יהונתן', '₪1,632,302'],
+      ['מנורה מבטחים משלימה', 'צבירה 0.2%', 'יהונתן', '₪550,296'],
+      ['מגדלור לחיים 2009', 'ביטוח מנהלים · 1.24%', 'יעל', '₪354,255'],
+      ['מור גמל לחיסכון 917708', 'צבירה 0.62%', 'יהונתן', '₪125,972'],
+    ], extra: `<div class="proj">
+        <div><span class="label">יהונתן · בגיל 67</span><b class="num">₪4.99M</b><span class="meta">קצבה ≈ ₪25.0K/ח׳</span></div>
+        <div><span class="label">יעל · בגיל 65</span><b class="num">₪0.77M</b><span class="meta">קצבה ≈ ₪3.2K/ח׳</span></div>
+      </div><div class="meta" style="margin-top:8px">תחזית בתשואה ריאלית 3.41% · גילאים 44 ו־42</div>` },
+    savings: { name: 'חסכונות', color: 'var(--c-savings)', total: '₪1,569,001', items: [
+      ['קרן השתלמות ילין לפידות (1162)', 'צבירה 0.66%', 'יהונתן', '₪807,166'],
+      ['מגדל השתלמות', 'צבירה 0.55%', 'יעל', '₪500,267'],
+      ['קרן השתלמות פניקס', 'צבירה 0.6%', 'יהונתן', '₪96,131'],
+      ['מור גמל להשקעה 917518', '0.62% מצבירה', 'יהונתן', '₪95,692'],
+      ['מגדל גמל להשקעה', 'צבירה 0.8%', 'יהונתן', '₪26,226'],
+      ['אלטשולר שחם — נמרוד', 'חיסכון לכל ילד', '', '₪13,710'],
+      ['אלטשולר שחם — מאיה', 'חיסכון לכל ילד', '', '₪12,558'],
+      ['אלטשולר שחם — דניאל', 'חיסכון לכל ילד', '', '₪9,951'],
+      ['מפתח דיסקונט', '', '', '₪7,300'],
+    ] },
+    stocks: { name: 'מניות', color: 'var(--c-stocks)', total: '₪1,120,178', more: 'ועוד 5 פריטים', items: [
+      ['מיטב כספית — ניהול נזילות', 'דיסקונט', '', '₪274,320'],
+      ['קרן מחקה תל אביב 125', 'דיסקונט', '', '₪153,852'],
+      ['קרן מחקה S&P 500', 'דיסקונט', '', '₪92,000'],
+      ['אפל', 'דיסקונט', '', '₪50,592'],
+      ['טסלה', 'דיסקונט', '', '₪45,716'],
+      ['אלטשולר שחם עוקבת תיק 3', 'דיסקונט', '', '₪28,200'],
+      ['ניו (NIO)', 'דיסקונט', '', '₪712'],
+    ] },
+  };
+  const tag = p => p ? `<span class="tag">${p}</span>` : '';
+  const sheet = document.getElementById('sheet');
+  function openCat(id) {
+    const c = CATS[id];
+    if (!c) return;
+    document.getElementById('sh-name').innerHTML = `<span class="bar" style="background:${c.color}"></span>${c.name}`;
+    document.getElementById('sh-total').textContent = c.total;
+    document.getElementById('sh-rows').innerHTML = c.items.map(([n, note, p, v]) =>
+      `<div class="row"><div><div class="row-name">${n}${tag(p)}</div>${note ? `<div class="row-note">${note}</div>` : ''}</div><div class="num" style="font-weight:600">${v}</div></div>`
+    ).join('') + (c.more ? `<div class="more">${c.more}</div>` : '');
+    document.getElementById('sh-extra').innerHTML = c.extra || '';
+    document.body.classList.add('open');
+  }
+  const close = () => document.body.classList.remove('open');
+  document.querySelectorAll('[data-cat]').forEach(t => t.addEventListener('click', () => {
+    const id = t.dataset.cat;
+    if (CATS[id]) openCat(id);
+    else { t.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }], { duration: 260 }); }
+  }));
+  document.getElementById('scrim').addEventListener('click', close);
+  document.getElementById('sh-close').addEventListener('click', close);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+</script>
+</body>
+</html>
