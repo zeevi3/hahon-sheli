@@ -474,8 +474,8 @@
     // Pension future value at retirement age
     // Ages are derived from birth dates so the pension projection never goes stale.
     // A person without a known birth date falls back to the fixed age.
-    const PERSON_BIRTH  = { יהונתן: '1982-09-09', יעל: null };
-    const PERSON_AGE_FALLBACK = { יהונתן: 44, יעל: 41 };
+    const PERSON_BIRTH  = { יהונתן: '1982-09-09', יעל: '1984-09-23' };
+    const PERSON_AGE_FALLBACK = { יהונתן: 44, יעל: 42 };
     function personAge(person) {
       const b = PERSON_BIRTH[person];
       if (!b) return PERSON_AGE_FALLBACK[person] ?? null;
