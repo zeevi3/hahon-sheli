@@ -1080,13 +1080,22 @@
           {/* Name: editable input in edit mode, static in view mode */}
           <div style={{ flex:1, minWidth:0 }}>
             {editMode ? (
-              <input type="text" placeholder="שם הפריט..."
-                value={item.name ?? ''}
-                onChange={e => onValueChange(catId, itemIdx, { name: e.target.value })}
-                style={{ width:'100%', background:'transparent', border:'none',
-                  borderBottom:'1px dashed var(--border)', fontSize:13, color:'var(--ink)',
-                  fontFamily:'inherit', outline:'none', padding:'2px 0',
-                  textAlign:'right', direction:'rtl' }} />
+              <>
+                <input type="text" placeholder="שם הפריט..."
+                  value={item.name ?? ''}
+                  onChange={e => onValueChange(catId, itemIdx, { name: e.target.value })}
+                  style={{ width:'100%', background:'transparent', border:'none',
+                    borderBottom:'1px dashed var(--border)', fontSize:13, color:'var(--ink)',
+                    fontFamily:'inherit', outline:'none', padding:'2px 0',
+                    textAlign:'right', direction:'rtl' }} />
+                <input type="text" placeholder="הערה / אחוזים (למשל: הפקדה 2.09% · צבירה 0%)"
+                  value={item.note ?? ''}
+                  onChange={e => onValueChange(catId, itemIdx, { note: e.target.value })}
+                  style={{ width:'100%', background:'transparent', border:'none',
+                    borderBottom:'1px dashed var(--border)', fontSize:11, color:'var(--ink-3)',
+                    fontFamily:'inherit', outline:'none', padding:'2px 0', marginTop:4,
+                    textAlign:'right', direction:'rtl' }} />
+              </>
             ) : (
               <>
                 <div style={{ fontSize:13, color:'var(--ink)' }}>{item.name}</div>
@@ -1256,29 +1265,6 @@
                 value={item._edit ?? ''}
                 {...confirmProps}
                 onChange={e => handleChange('value', '_edit', e.target.value)} />
-              {isStocks && (
-                <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-                  <span style={{ fontSize:10, color:'var(--ink-3)' }}>כמות</span>
-                  <input className={editCls} type="text" inputMode="decimal"
-                    style={{ width:80 }}
-                    value={item._editQty ?? ''}
-                    {...confirmProps}
-                    onChange={e => {
-                      const qty = parseFloat(e.target.value.replace(/,/g,'')) || 0;
-                      const livePrice = livePrices?.[item._editTicker || item.ticker];
-                      const updates = { _editQty: e.target.value, qty, _dirty: true };
-                      if (livePrice && qty) updates._edit = String(Math.round(livePrice * qty));
-                      onValueChange(catId, itemIdx, updates);
-                    }} />
-                  <input type="text" placeholder="AAPL"
-                    value={item._editTicker ?? ''}
-                    onChange={e => onValueChange(catId, itemIdx, { _editTicker: e.target.value.toUpperCase(), ticker: e.target.value.trim().toUpperCase() })}
-                    style={{ width:64, fontFamily:'inherit', fontSize:11, fontWeight:700,
-                      background:'var(--surface-2)', border:'1px solid var(--border)',
-                      borderRadius:6, padding:'4px 6px', textAlign:'center',
-                      direction:'ltr', outline:'none', color:'var(--ink)' }} />
-                </div>
-              )}
             </div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end',
@@ -1367,11 +1353,12 @@
     }
 
     // ── Assets-over-time table: rows = assets, columns = update dates ──
-    function TableView({ appState, livePrices, masked, onClose }) {
+    function TableView({ appState, livePrices, masked, onClose, onDeleteSnapshot }) {
       // Columns: "today" first (rightmost in RTL), then snapshots newest→oldest
+      // snapIdx = index in appState.snapshots (null for "today", which can't be deleted)
       const cols = [
-        { label: 'היום', holdings: appState.current, live: livePrices },
-        ...appState.snapshots.map(s => ({ label: formatDate(s.date), holdings: s.holdings, live: {} })).reverse(),
+        { label: 'היום', holdings: appState.current, live: livePrices, snapIdx: null },
+        ...appState.snapshots.map((s, idx) => ({ label: formatDate(s.date), holdings: s.holdings, live: {}, snapIdx: idx })).reverse(),
       ];
 
       // Value of a current item inside an arbitrary column, matched by _rid → name
@@ -1420,7 +1407,19 @@
                   <thead>
                     <tr>
                       <th className="col-name">נכס</th>
-                      {cols.map((c, i) => <th key={i} className="num">{c.label}</th>)}
+                      {cols.map((c, i) => (
+                        <th key={i} className="num">
+                          {c.label}
+                          {c.snapIdx != null && onDeleteSnapshot && (
+                            <button onClick={() => onDeleteSnapshot(c.snapIdx)}
+                              title="מחק את העדכון הזה"
+                              style={{ marginInlineStart:6, width:16, height:16, borderRadius:5,
+                                border:'none', background:'#FEE2E2', color:'#EF4444',
+                                fontSize:11, fontWeight:700, lineHeight:1, padding:0,
+                                cursor:'pointer', verticalAlign:'middle' }}>×</button>
+                          )}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -2052,10 +2051,6 @@
               // Stocks with a live ticker open pre-filled with the live value
               const live = catId === 'stocks' ? liveTickerValue(item, livePrices) : null;
               item._edit = String(live != null ? Math.round(live) : (item.value || 0));
-              if (catId === 'stocks') {
-                item._editQty    = String(item.qty ?? '');
-                item._editTicker = item.ticker || '';
-              }
             }
           });
         });
@@ -2092,13 +2087,10 @@
               item.value = parseFloat(String(item._edit || '').replace(/,/g,'')) || 0;
               delete item._edit;
               if (catId === 'stocks') {
-                item.qty    = parseFloat(String(item._editQty || '').replace(/,/g,'')) || 0;
-                item.ticker = (item._editTicker || '').trim().toUpperCase();
-                delete item._editQty;
-                delete item._editTicker;
-                // Snapshot the live value so history stays accurate even offline
-                const live = liveTickerValue(item, livePrices);
-                if (live != null) item.value = Math.round(live);
+                // Stocks are entered manually (the live-price source no longer works):
+                // drop quantity/ticker so a stale ticker can never override the typed value.
+                delete item.qty;
+                delete item.ticker;
               }
             }
             delete item._touched;
@@ -2573,7 +2565,8 @@
           {/* ── Assets-over-time table ── */}
           {showTable && (
             <TableView appState={appState} livePrices={livePrices}
-              masked={masked} onClose={() => setShowTable(false)} />
+              masked={masked} onClose={() => setShowTable(false)}
+              onDeleteSnapshot={deleteSnapshot} />
           )}
 
           {/* ── History panel ── */}
@@ -4201,7 +4194,7 @@
     }
 
     // ── Entry tab ────────────────────────────────────────
-    function RtEntryTab({ rt, openSheet, onExportJson, onExportCsv, onAddFx, onDeleteFx }) {
+    function RtEntryTab({ rt, openSheet, onExportJson, onExportCsv, onImportJson, onReplaceJson, onAddFx, onDeleteFx }) {
       const [fxForm, setFxForm] = useState({ date: rtToday(), rate: '' });
       const recent = [
         ...rt.values.map(v => ({ ...v, _t: 'value' })),
@@ -4304,6 +4297,17 @@
               <button className="rt-btn2" onClick={() => openSheet({ type: 'import' })}>ייבוא נכסים מההון שלי</button>
               <button className="rt-btn2" onClick={onExportJson}>הורדת JSON</button>
               <button className="rt-btn2" onClick={onExportCsv}>הורדת CSV</button>
+              <label className="rt-btn2" style={{ cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
+                ייבוא JSON (מיזוג)
+                <input type="file" accept=".json,application/json" hidden
+                  onChange={e => { const f = e.target.files[0]; e.target.value = ''; if (f) onImportJson(f); }} />
+              </label>
+              <label className="rt-btn2" style={{ cursor:'pointer', display:'inline-flex', alignItems:'center',
+                                                  color:'#B91C1C', borderColor:'#FECACA' }}>
+                טעינה והחלפה (מוחק את הקיים)
+                <input type="file" accept=".json,application/json" hidden
+                  onChange={e => { const f = e.target.files[0]; e.target.value = ''; if (f) onReplaceJson(f); }} />
+              </label>
             </div>
           </section>
         </>
@@ -4788,6 +4792,78 @@
         importMaps: [...(s.importMaps || []).filter(x => x.name !== m.name), { ...m, id: nextRid() }],
       }));
 
+      // JSON import (merge): only adds records whose id isn't already present
+      // (fx merges by date) — never overwrites or deletes anything that exists.
+      const importJsonFile = async file => {
+        let inc;
+        try { inc = rtNormalize(JSON.parse(await file.text())); }
+        catch { return alert('הקובץ אינו JSON תקין'); }
+        const added = {};
+        const merged = {};
+        // Accounts that already exist (same id, or same name) are reused: incoming
+        // records are re-pointed at the existing account instead of duplicating it.
+        const norm = n => String(n || '').trim();
+        const idMap = {};
+        merged.accounts = [];
+        inc.accounts.forEach(a => {
+          if (!a || !a.id) return;
+          const ex = rt.accounts.find(x => x.id === a.id || norm(x.name) === norm(a.name));
+          if (ex) idMap[a.id] = ex.id; else merged.accounts.push(a);
+        });
+        added.accounts = merged.accounts.length;
+        const remap = x => ({ ...x, accountId: idMap[x.accountId] || x.accountId });
+        const haveVal = new Set(rt.values.map(v => `${v.accountId}|${v.date}`));
+        const haveFlow = new Set(rt.flows.map(f => `${f.accountId}|${f.date}|${f.amount}|${f.kind}`));
+        const haveInc = new Set(rt.income.map(i => `${i.accountId}|${i.year}`));
+        merged.values = inc.values.filter(v => v && v.id).map(remap).filter(v => !haveVal.has(`${v.accountId}|${v.date}`));
+        merged.flows  = inc.flows.filter(f => f && f.id).map(remap).filter(f => !haveFlow.has(`${f.accountId}|${f.date}|${f.amount}|${f.kind}`));
+        merged.income = inc.income.filter(i => i && i.id).map(remap).filter(i => !haveInc.has(`${i.accountId}|${i.year}`));
+        ['documents', 'importMaps'].forEach(k => {
+          const have = new Set(rt[k].map(x => x.id));
+          merged[k] = inc[k].filter(x => x && x.id && !have.has(x.id)).map(k === 'documents' ? remap : (x => x));
+        });
+        ['values', 'flows', 'income', 'documents', 'importMaps'].forEach(k => { added[k] = merged[k].length; });
+        const haveFx = new Set(rt.fx.map(x => x.date));
+        merged.fx = inc.fx.filter(x => x && x.date && !haveFx.has(x.date));
+        added.fx = merged.fx.length;
+        const total = Object.values(added).reduce((a, b) => a + b, 0);
+        if (!total) return alert('אין רשומות חדשות — הכל כבר קיים.');
+        if (!confirm(`לייבא: ${added.accounts} חשבונות, ${added.values} שוויים, ${added.flows} תנועות, ${added.income} דיבידנדים/עמלות, ${added.fx} שערים?\n(רשומות קיימות לא ישונו)`)) return;
+        update(s => ({ ...s,
+          accounts: [...s.accounts, ...merged.accounts],
+          values: [...s.values, ...merged.values],
+          flows: [...s.flows, ...merged.flows],
+          income: [...s.income, ...merged.income],
+          documents: [...s.documents, ...merged.documents],
+          importMaps: [...s.importMaps, ...merged.importMaps],
+          fx: [...s.fx, ...merged.fx],
+        }));
+      };
+
+      // JSON replace: wipes accounts/values/flows/income and loads the file instead.
+      // A backup of the current state is downloaded first. Documents (archive
+      // metadata) and FX points are kept; documents are re-linked to accounts by name.
+      const replaceFromJsonFile = async file => {
+        let inc;
+        try { inc = rtNormalize(JSON.parse(await file.text())); }
+        catch { return alert('הקובץ אינו JSON תקין'); }
+        if (!inc.accounts.length) return alert('הקובץ ריק — לא נמצאו חשבונות.');
+        if (!confirm(`זה ימחק את כל נתוני התשואות הנוכחיים (${rt.accounts.length} חשבונות, ${rt.values.length} שוויים, ${rt.flows.length} תנועות)\nויחליף אותם בנתוני הקובץ (${inc.accounts.length} חשבונות, ${inc.values.length} שוויים, ${inc.flows.length} תנועות).\n\nגיבוי של המצב הנוכחי יורד אוטומטית לפני ההחלפה. להמשיך?`)) return;
+        rtDownload(`hahon-returns-backup-${rtToday()}.json`, JSON.stringify(rt, null, 2), 'application/json');
+        const oldName = Object.fromEntries(rt.accounts.map(a => [a.id, String(a.name || '').trim()]));
+        update(s => {
+          const byName = Object.fromEntries(inc.accounts.map(a => [String(a.name || '').trim(), a.id]));
+          return { ...s,
+            accounts: inc.accounts, values: inc.values, flows: inc.flows, income: inc.income,
+            fx: inc.fx.length ? inc.fx : s.fx,
+            importMaps: inc.importMaps.length ? inc.importMaps : s.importMaps,
+            documents: s.documents.map(d => ({ ...d, accountId: byName[oldName[d.accountId]] || null })),
+          };
+        });
+        setFilter({ group: null, owner: null, account: null });
+        setTab('main');
+      };
+
       // ── Export: the data stays yours ──
       const exportJson = () => rtDownload(`hahon-returns-${rtToday()}.json`,
         JSON.stringify(rt, null, 2), 'application/json');
@@ -4904,6 +4980,7 @@
           {tab === 'entry' && (
             <RtEntryTab rt={rt} openSheet={setSheet}
               onExportJson={exportJson} onExportCsv={exportCsv}
+              onImportJson={importJsonFile} onReplaceJson={replaceFromJsonFile}
               onAddFx={addFx} onDeleteFx={deleteFx} />
           )}
           {tab === 'missing' && <RtMissingTab result={result} rt={rt} />}
