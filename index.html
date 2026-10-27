@@ -372,8 +372,8 @@
 <body>
   <div id="root"></div>
 
-  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
 
   <script type="text/babel">
@@ -410,7 +410,9 @@
     // HELPERS
     // ─────────────────────────────────────────────────────
 
-    const FX  = { ILS: 1, USD: 0.27, EUR: 0.25, HKD: 2.10, THB: 9.3 };
+    // Units of each currency per 1 ₪. Fallback only — replaced by live ECB rates on load
+    // (fetchLiveRates). Last refreshed Oct-2026: USD≈3.08₪, EUR≈3.44₪.
+    const FX  = { ILS: 1, USD: 0.325, EUR: 0.29, HKD: 2.53, THB: 10.6 };
     const SYM = { ILS: '₪', USD: '$', EUR: '€', HKD: 'HK$', THB: '฿' };
     const CURRENCIES = ['ILS', 'USD', 'EUR', 'HKD', 'THB'];
 
@@ -438,21 +440,6 @@
       DOGE: 'dogecoin', MATIC: 'matic-network', AVAX: 'avalanche-2',
       LINK: 'chainlink', UNI: 'uniswap', LTC: 'litecoin', ATOM: 'cosmos',
     };
-
-    // Live stock price via Yahoo Finance (through a CORS proxy), converted to ILS per unit.
-    // Supports US symbols (AAPL, TSLA) and TASE symbols with .TA suffix.
-    // TASE quotes arrive in agorot (currency "ILA") — divided by 100.
-    async function fetchYahooPriceILS(symbol) {
-      const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-      const r = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(yUrl)}`);
-      const j = await r.json();
-      const meta = j?.chart?.result?.[0]?.meta;
-      if (!meta || meta.regularMarketPrice == null) return null;
-      const cur = meta.currency || 'USD';
-      if (cur === 'ILS') return meta.regularMarketPrice;
-      if (cur === 'ILA') return meta.regularMarketPrice / 100;
-      return toILS(meta.regularMarketPrice, cur);
-    }
 
     // Convert a foreign-currency amount to ILS
     function toILS(amount, currency) {
@@ -485,7 +472,18 @@
     }
 
     // Pension future value at retirement age
-    const PERSON_AGES   = { יהונתן: 43, יעל: 41 };
+    // Ages are derived from birth dates so the pension projection never goes stale.
+    // A person without a known birth date falls back to the fixed age.
+    const PERSON_BIRTH  = { יהונתן: '1982-09-09', יעל: null };
+    const PERSON_AGE_FALLBACK = { יהונתן: 44, יעל: 41 };
+    function personAge(person) {
+      const b = PERSON_BIRTH[person];
+      if (!b) return PERSON_AGE_FALLBACK[person] ?? null;
+      const birth = new Date(b + 'T00:00:00'), now = new Date();
+      let age = now.getFullYear() - birth.getFullYear();
+      if (now < new Date(now.getFullYear(), birth.getMonth(), birth.getDate())) age--;
+      return age;
+    }
     const RETIRE_AGES   = { יהונתן: 67, יעל: 65 };
     // Real net annual return (not nominal): factors in expected inflation and
     // fund management fees, matching the conservative model insurance companies
@@ -497,18 +495,12 @@
     const PENSION_KOEF  = { יהונתן: 200, יעל: 240 };
 
     function pensionFV(pv, item) {
-      const curAge    = PERSON_AGES[item.person];
+      const curAge    = personAge(item.person);
       const retireAge = RETIRE_AGES[item.person];
       if (!curAge || !retireAge) return null;
       const n = retireAge - curAge;
       if (n <= 0) return pv;
       return Math.round(pv * Math.pow(1 + PENSION_RATE, n));
-    }
-
-    function pensionMonthly(fv, item) {
-      const koef = PENSION_KOEF[item.person];
-      if (!koef || !fv) return null;
-      return Math.round(fv / koef);
     }
 
     // Format large pension numbers in Hebrew: "₪ 7.45 מיליון"
@@ -529,7 +521,6 @@
     function itemILS(catId, item, livePrices = {}) {
       if (catId === 'bank')   return toILS(item.foreignAmount ?? item.value ?? 0, item.currency || 'ILS');
       if (catId === 'crypto') return liveTickerValue(item, livePrices) ?? (item.marketValue || 0);
-      if (catId === 'stocks') return liveTickerValue(item, livePrices) ?? (item.value || 0);
       return item.value || 0;
     }
 
@@ -537,7 +528,7 @@
       const catTotals = {};
       catTotals.pension  = (holdings.pension || []).reduce((s,x) => s + (x.value || 0), 0);
       catTotals.savings  = (holdings.savings || []).reduce((s,x) => s + (x.value || 0), 0);
-      catTotals.stocks   = (holdings.stocks  || []).reduce((s,x) => s + (liveTickerValue(x, livePrices) ?? x.value ?? 0), 0);
+      catTotals.stocks   = (holdings.stocks  || []).reduce((s,x) => s + (x.value || 0), 0);
       catTotals.crypto   = (holdings.crypto  || []).reduce((s,x) => s + (liveTickerValue(x, livePrices) ?? x.marketValue ?? 0), 0);
       catTotals.bank     = (holdings.bank || []).reduce((s,x) => s + toILS(x.foreignAmount ?? x.value ?? 0, x.currency || 'ILS'), 0);
       const total = Object.values(catTotals).reduce((s,v) => s + v, 0);
@@ -603,10 +594,10 @@
         const raw = localStorage.getItem(LS_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (!parsed.version || parsed.version < DATA_VER) {
-            parsed.snapshots = [];
-            parsed.version   = DATA_VER;
-          }
+          // Older data is upgraded in place (normalize + migrate below) — history is
+          // never discarded on a version bump.
+          parsed.snapshots = Array.isArray(parsed.snapshots) ? parsed.snapshots : [];
+          parsed.version   = DATA_VER;
           parsed.current = normalizeHoldings(parsed.current || {});
           migrateHoldings(parsed.current);
           (parsed.snapshots || []).forEach(s => {
@@ -1012,13 +1003,10 @@
                           livePrices, getPrevItemVal }) {
       const prevVal = getPrevItemVal ? getPrevItemVal(catId, item) : null;
       const isBank = catId === 'bank';
-      const isStocks = catId === 'stocks';
       const [addCurForm, setAddCurForm] = useState(null); // null | {code:'', rate:'', sym:''}
 
-      // Live market value (qty × live price) for crypto/stock tickers, if available
-      const liveMarket = (isCrypto || isStocks)
-        ? liveTickerValue(item, livePrices || {})
-        : null;
+      // Live market value (qty × live price) for crypto tickers, if available
+      const liveMarket = isCrypto ? liveTickerValue(item, livePrices || {}) : null;
 
       // ── display values ──
       const ilsValue = isBank
@@ -1269,18 +1257,12 @@
           ) : (
             <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end',
                           flexShrink:0, minWidth:120 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-                {liveMarket !== null && (
-                  <span title="שער חי" style={{ width:6, height:6, borderRadius:'50%',
-                    background:'#10B981', flexShrink:0 }} />
-                )}
-                <div className={`number-val${masked?' masked':''}`}
-                     style={{ fontSize:13, fontWeight:600, color:'var(--ink)',
-                              fontVariantNumeric:'tabular-nums', direction:'ltr', textAlign:'left' }}>
-                  {maskVal(fmt(liveMarket ?? ilsValue), masked)}
-                </div>
+              <div className={`number-val${masked?' masked':''}`}
+                   style={{ fontSize:13, fontWeight:600, color:'var(--ink)',
+                            fontVariantNumeric:'tabular-nums', direction:'ltr', textAlign:'left' }}>
+                {maskVal(fmt(ilsValue), masked)}
               </div>
-              <DeltaTag cur={liveMarket ?? ilsValue ?? 0} prev={prevVal} masked={masked} size={10} />
+              <DeltaTag cur={ilsValue ?? 0} prev={prevVal} masked={masked} size={10} />
             </div>
           )}
         </div>
@@ -1883,7 +1865,6 @@
       const [viewingIdx,    setViewingIdx]    = useState(null);
       const [livePrices, setLivePrices] = useState({}); // ticker → ILS per unit
       const [liveRatesAt,  setLiveRatesAt]    = useState(null);     // Date of last fetch
-      const [ratesFetching, setRatesFetching] = useState(false);
       const [syncConfig,   setSyncConfig]     = useState(() => loadSyncConfig());
       const [syncStatus,   setSyncStatus]     = useState('idle'); // idle|loading|saving|ok|error
       const [screen,       setScreen]         = useState('wealth'); // 'wealth' | 'returns'
@@ -1899,10 +1880,10 @@
 
       // ── Live rate fetching ───────────────────────────────
       const fetchLiveRates = useCallback(async () => {
-        setRatesFetching(true);
         // 1. Forex via Frankfurter (ECB-based, covers ILS→USD/EUR/HKD/THB + more)
         try {
-          const r = await fetch('https://api.frankfurter.app/latest?base=ILS');
+          // frankfurter.app now 301-redirects without CORS headers — use the new domain directly
+          const r = await fetch('https://api.frankfurter.dev/v1/latest?base=ILS');
           const d = await r.json();
           if (d.rates) Object.entries(d.rates).forEach(([code, rate]) => { FX[code] = rate; });
         } catch {}
@@ -1928,18 +1909,8 @@
           } catch {}
         }
 
-        // 3. Stocks via Yahoo Finance (runs after forex so USD→ILS conversion is fresh)
-        const stockTickers = [...new Set(
-          state.current.stocks.map(s => s.ticker).filter(Boolean)
-        )];
-        await Promise.allSettled(stockTickers.map(async t => {
-          const p = await fetchYahooPriceILS(t);
-          if (p != null) prices[t] = p;
-        }));
-
         setLivePrices(prices);
         setLiveRatesAt(new Date());
-        setRatesFetching(false);
       }, []);
 
       useEffect(() => { fetchLiveRates(); }, []);
@@ -1952,12 +1923,10 @@
           .then(data => {
             if (data) {
               delete data.returns; // owned by the returns screen — must never enter appState
-              // Version migration: clear snapshots if data is from an older version
+              // Older data is upgraded in place — history is never discarded
               const needsMigration = !data.version || data.version < DATA_VER;
-              if (needsMigration) {
-                data.snapshots = [];
-                data.version = DATA_VER;
-              }
+              data.snapshots = Array.isArray(data.snapshots) ? data.snapshots : [];
+              data.version = DATA_VER;
               if (data.current && Object.keys(data.current).length > 0) {
                 data.current = normalizeHoldings(data.current);
                 migrateHoldings(data.current);
@@ -2048,9 +2017,7 @@
               item._editForeignAmount = String(item.foreignAmount ?? item.value ?? 0);
               item._editCurrency      = item.currency || 'ILS';
             } else {
-              // Stocks with a live ticker open pre-filled with the live value
-              const live = catId === 'stocks' ? liveTickerValue(item, livePrices) : null;
-              item._edit = String(live != null ? Math.round(live) : (item.value || 0));
+              item._edit = String(item.value || 0);
             }
           });
         });
