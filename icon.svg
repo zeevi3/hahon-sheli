@@ -1,5 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0B1F1B"/>
-  <path d="M120 352 L216 232 L288 296 L392 160" stroke="#10B981" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <path d="M392 160 L392 232 M392 160 L320 160" stroke="#10B981" stroke-width="36" stroke-linecap="round" fill="none"/>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1F5A49"/><stop offset="1" stop-color="#0B1F1B"/></linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="132" fill="none" stroke="#FFFFFF" stroke-opacity="0.13" stroke-width="44"/>
+  <circle cx="256" cy="256" r="132" fill="none" stroke="#5DCAA5" stroke-width="44" stroke-linecap="round" stroke-dasharray="460 830" transform="rotate(-90 256 256)"/>
+  <circle cx="256" cy="256" r="132" fill="none" stroke="#7F77DD" stroke-width="44" stroke-linecap="round" stroke-dasharray="170 830" stroke-dashoffset="-500" transform="rotate(-90 256 256)"/>
+  <circle cx="256" cy="256" r="132" fill="none" stroke="#E8A33D" stroke-width="44" stroke-linecap="round" stroke-dasharray="90 830" stroke-dashoffset="-710" transform="rotate(-90 256 256)"/>
 </svg>

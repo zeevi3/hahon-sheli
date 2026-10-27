@@ -1,7 +1,7 @@
 // Minimal service worker: makes the app installable and serves a cached
 // shell when offline. Live prices/sync still require a connection.
-const CACHE = 'hahon-v1';
-const SHELL = ['./', './index.html', './icon.svg', './manifest.webmanifest'];
+const CACHE = 'hahon-v2';
+const SHELL = ['./', './index.html', './icon.svg', './apple-touch-icon.png', './manifest.webmanifest'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
