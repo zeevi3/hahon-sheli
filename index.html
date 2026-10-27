@@ -1270,8 +1270,8 @@
           </nav>
           <div className="h-actions">
             <button className={`h-cta${editMode ? ' on' : ''}`} onClick={onUpdate}>
-              <Icon name={editMode ? 'pencil' : 'plus'} size={16} />
-              <span className="h-cta-label">{editMode ? 'ביטול עדכון' : 'עדכון חודשי'}</span>
+              <Icon name="pencil" size={15} />
+              <span className="h-cta-label">{editMode ? 'ביטול עריכה' : 'עדכון ועריכה'}</span>
             </button>
             <button className="h-icon" aria-label="תפריט" onClick={() => setOpen(v => !v)}>
               <Icon name="dots" size={18} />
@@ -1299,7 +1299,7 @@
         <nav className="h-dock" aria-label="ניווט">
           <button className={screen === 'wealth' && !editMode ? 'on' : ''} onClick={() => onScreen('wealth')}><Icon name="home" size={18} />הון</button>
           <button className={screen === 'returns' ? 'on' : ''} onClick={() => onScreen('returns')}><Icon name="percent" size={18} />תשואות</button>
-          <button className={editMode ? 'on' : ''} onClick={onUpdate}><Icon name="plus" size={18} />עדכון</button>
+          <button className={editMode ? 'on' : ''} onClick={onUpdate}><Icon name="pencil" size={17} />עריכה</button>
           <button onClick={onHistory}><Icon name="history" size={18} />היסטוריה</button>
         </nav>
       );
