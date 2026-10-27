@@ -263,11 +263,6 @@
     .h-chip.down { background:rgba(240,124,120,.16); color:#F5A3A0; }
     .h-sub { display:flex; gap:22px; font-size:13px; color:rgba(242,250,246,.72); }
     .h-sub b { display:block; font-size:17px; color:#fff; font-weight:600; margin-top:2px; }
-    .h-chart { width:100%; height:96px; margin-top:14px; display:block; }
-    .h-range { display:flex; gap:6px; margin-top:6px; }
-    .h-range button { font-size:12px; padding:4px 10px; border-radius:999px; border:none; background:none;
-                      color:rgba(242,250,246,.62); }
-    .h-range button.on { background:rgba(255,255,255,.12); color:#fff; }
     .h-alloc { grid-column:span 4; }
     .h-ring { display:flex; align-items:center; gap:16px; margin-top:10px; }
     .h-legend { display:grid; gap:7px; font-size:13px; flex:1; }
@@ -1317,49 +1312,6 @@
       ).join(' ');
     }
 
-    const HERO_RANGES = [
-      { id: '3m', label: '3ח׳', days: 92 }, { id: '6m', label: '6ח׳', days: 183 },
-      { id: '1y', label: 'שנה', days: 366 }, { id: 'all', label: 'הכל', days: null },
-    ];
-
-    function HeroChart({ points, masked }) {
-      const [range, setRange] = useState('1y');
-      const r = HERO_RANGES.find(x => x.id === range);
-      let pts = r.days ? points.filter(p => p.t >= Date.now() - r.days * 86400000) : points;
-      if (pts.length < 2) pts = points.slice(-2);
-      if (pts.length < 2) return null;
-      const W = 600, H = 96;
-      const line = sparkPath(pts.map(p => p.v), W, H, 8);
-      const area = `${line} L${W},${H} L0,${H} Z`;
-      const last = pts[pts.length - 1];
-      const lastY = parseFloat(line.split(' ').pop().split(',')[1]);
-      return (
-        <>
-          <svg className={`h-chart${masked ? ' masked' : ''}`} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-            <defs>
-              <linearGradient id="hHeroFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#34D399" stopOpacity=".38" /><stop offset="1" stopColor="#34D399" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path d={area} fill="url(#hHeroFill)" />
-            <path d={line} fill="none" stroke="#34D399" strokeWidth="2.6" vectorEffect="non-scaling-stroke"
-                  strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx={W} cy={lastY} r="4.5" fill="#34D399" stroke="#0A1C18" strokeWidth="2" />
-          </svg>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6 }}>
-            <div className="h-range">
-              {HERO_RANGES.map(x => (
-                <button key={x.id} className={x.id === range ? 'on' : ''} onClick={() => setRange(x.id)}>{x.label}</button>
-              ))}
-            </div>
-            <span className="h-label num" style={{ fontSize:12 }}>
-              {formatDate(new Date(pts[0].t).toISOString())} – {last.t >= Date.now() - 86400000 ? 'היום' : formatDate(new Date(last.t).toISOString())}
-            </span>
-          </div>
-        </>
-      );
-    }
-
     function AllocRing({ catTotals, masked }) {
       const total = Object.values(catTotals).reduce((s, v) => s + v, 0);
       if (!total) return null;
@@ -1504,7 +1456,6 @@
                 <div>נזיל<b className={`num${masked ? ' masked' : ''}`}>{maskVal(fmt(liquid, 'ILS', { compact: true }), masked)}</b></div>
               </div>
             </div>
-            <HeroChart points={series} masked={masked} />
           </section>
 
           <section className="h-tile h-alloc anim-1">
