@@ -221,7 +221,10 @@
 
     /* ═══ Design 2026 — shared shell, bento home, category sheet, dock ═══ */
     .num { font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
-    .h-top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; }
+    /* z-index: the entrance animation gives the header its own stacking context,
+       so the dropdown menu can only rise above the tiles if the header itself does */
+    .h-top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px;
+             position:relative; z-index:960; }
     .h-brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; color:var(--ink); }
     .h-logo { width:36px; height:36px; border-radius:11px; display:grid; place-items:center;
               background:linear-gradient(145deg,#12453A,#0A1C18); color:#34D399; }
